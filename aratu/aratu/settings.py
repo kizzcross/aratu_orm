@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'clients_profiles',
     'sensor',
     'auditlog',
+    'calculo_velocity'
 ]
 
 REST_FRAMEWORK = {
