@@ -1,5 +1,6 @@
 from datetime import timedelta
 import math
+from .models import AirQualityData
 
 # neste ficara responsavel pelos calculos e retornos com dados processados
 
@@ -34,8 +35,6 @@ def convert_to_meters(lat1, lon1, lat2, lon2):
     lon2 -> longitude do segundo ponto
 
     Essa função me retorna em kms a distancia entre estes dois pontos. 
-    
-
 
     
     """
@@ -48,7 +47,6 @@ def convert_to_meters(lat1, lon1, lat2, lon2):
     return distance
 
 if "__name__" == "__main__":
-    print("Ola mundo")
  # Testando a função de calcular distancia convert_to_meters()
 
     

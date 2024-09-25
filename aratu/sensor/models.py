@@ -1,5 +1,4 @@
 from django.db import models
-from auditlog.models import AuditlogHistoryField
 from auditlog.registry import auditlog
 
 
