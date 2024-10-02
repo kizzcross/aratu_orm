@@ -17,6 +17,7 @@ def calculate_velocity(accel_x, accel_y, accel_z, delta_t):
     Em questão de desempenho sempre sera melhor usar maneiras diretas de realizar estes calculos
     """
     # Calcular a magnitude da aceleração
+    
     magnitude = (accel_x**2 + accel_y**2 + accel_z**2)**0.5
   
 
