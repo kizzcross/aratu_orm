@@ -1,5 +1,4 @@
 from django.db import models
-from auditlog.models import AuditlogHistoryField
 from auditlog.registry import auditlog
 
 
@@ -7,9 +6,6 @@ class AirQualityMeter(models.Model):
     name = models.CharField(max_length=100)
     model = models.CharField(max_length=100)
     serial_number = models.CharField(max_length=100)
-    acquisition_date = models.DateField()
-    maintenance_date = models.DateField()
-    exchange_date = models.DateField()
 
     def __str__(self):
         return f'{self.name} - {self.model}'
@@ -18,9 +14,6 @@ class AirQualityMeter(models.Model):
 class MicroController(models.Model):
     aratu_id = models.CharField(max_length=100)
     name = models.CharField(max_length=100)
-    maintenance_date = models.DateField()
-    exchange_date = models.DateField()
-    acquisition_date = models.DateField()
     serial_number = models.CharField(max_length=100)
     model = models.CharField(max_length=100)
     air_quality_meter = models.ForeignKey(AirQualityMeter, on_delete=models.CASCADE)
@@ -31,12 +24,6 @@ class MicroController(models.Model):
 
 class Sensor(models.Model):
     microcontroller = models.ForeignKey(MicroController, on_delete=models.CASCADE)
-    name = models.CharField(max_length=100)
-    model = models.CharField(max_length=100)
-    serial_number = models.CharField(max_length=100)
-    acquisition_date = models.DateField()
-    maintenance_date = models.DateField()
-    exchange_date = models.DateField()
 
     def __str__(self):
         return f'{self.name} - {self.model}'
