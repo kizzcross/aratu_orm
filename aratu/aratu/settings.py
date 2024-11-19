@@ -22,9 +22,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-%@c8+z52(t)pp#4ekh%lia$itbmn-sgr+a7ohx(9hng76$45zk'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['ifmg.aratu.net', '131.255.252.77', 'localhost', '127.0.0.1']
+
 
 # Application definition
 
@@ -43,6 +44,7 @@ INSTALLED_APPS = [
     'clients_profiles',
     'sensor',
     'auditlog',
+
 ]
 
 REST_FRAMEWORK = {
@@ -83,6 +85,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'auditlog.middleware.AuditlogMiddleware'
 ]
 
 ROOT_URLCONF = 'aratu.urls'
@@ -129,9 +132,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'pt-br'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Sao_Paulo'
 
 USE_I18N = True
 
@@ -148,3 +151,17 @@ STATIC_ROOT = BASE_DIR / 'static'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+
+# settings.py
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'aggregate-json-files-every-minute': {
+        'task': 'sensor.tasks.aggregate_json_files',
+        'schedule': crontab(minute='*'),  # Every minute
+    },
+}
