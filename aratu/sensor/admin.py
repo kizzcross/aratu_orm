@@ -4,29 +4,24 @@ from .models import AirQualityMeter, MicroController, Sensor, AirQualityData
 # Customize the AirQualityMeter admin
 @admin.register(AirQualityMeter)
 class AirQualityMeterAdmin(admin.ModelAdmin):
-    list_display = ('name', 'model', 'serial_number', 'acquisition_date', 'maintenance_date', 'exchange_date')
+    list_display = ('name', 'model', 'serial_number')
     search_fields = ('name', 'model', 'serial_number')
-    list_filter = ('acquisition_date', 'maintenance_date', 'exchange_date')
-    date_hierarchy = 'acquisition_date'
-    ordering = ['-acquisition_date']
+    ordering = ['name']
 
 # Customize the MicroController admin
 @admin.register(MicroController)
 class MicroControllerAdmin(admin.ModelAdmin):
-    list_display = ('aratu_id', 'name', 'model', 'serial_number', 'acquisition_date', 'maintenance_date', 'exchange_date', 'air_quality_meter')
+    list_display = ('aratu_id', 'name', 'model', 'serial_number', 'air_quality_meter')
     search_fields = ('aratu_id', 'name', 'model', 'serial_number', 'air_quality_meter__name')
-    list_filter = ('acquisition_date', 'maintenance_date', 'exchange_date', 'air_quality_meter')
-    date_hierarchy = 'acquisition_date'
-    ordering = ['-acquisition_date']
+    list_filter = ('air_quality_meter',)
+    ordering = ['aratu_id']
 
 # Customize the Sensor admin
 @admin.register(Sensor)
 class SensorAdmin(admin.ModelAdmin):
-    list_display = ('name', 'model', 'serial_number', 'acquisition_date', 'maintenance_date', 'exchange_date', 'microcontroller')
-    search_fields = ('name', 'model', 'serial_number', 'microcontroller__name')
-    list_filter = ('acquisition_date', 'maintenance_date', 'exchange_date', 'microcontroller')
-    date_hierarchy = 'acquisition_date'
-    ordering = ['-acquisition_date']
+    list_display = ('microcontroller',)
+    search_fields = ('microcontroller__name',)
+    ordering = ['microcontroller']
 
 # Customize the AirQualityData admin
 @admin.register(AirQualityData)
@@ -36,7 +31,6 @@ class AirQualityDataAdmin(admin.ModelAdmin):
     list_filter = ('measure_time', 'air_quality_meter', 'device')
     date_hierarchy = 'measure_time'
     ordering = ['-measure_time']
-
 
     # Optional: Fieldsets to organize fields in groups
     fieldsets = (
@@ -56,4 +50,3 @@ class AirQualityDataAdmin(admin.ModelAdmin):
             'fields': ('ax', 'ay', 'az', 'gx', 'gy', 'gz')
         }),
     )
-

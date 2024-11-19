@@ -153,3 +153,17 @@ STATIC_ROOT = BASE_DIR / 'static'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+
+# settings.py
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'aggregate-json-files-every-minute': {
+        'task': 'sensor.tasks.aggregate_json_files',
+        'schedule': crontab(minute='*'),  # Every minute
+    },
+}
