@@ -53,8 +53,12 @@ def threat_lat_and_lon_outliers(df, column):
 def process_and_import_air_quality_data(file_path):
     start_memory, start_cpu = monitor_usage()
 
-    # Load data from Excel
-    air_quality_data = pd.read_excel(file_path)
+    # Load data from json
+    with open(file_path) as f:
+        data = json.load(f)
+
+    # Create a DataFrame from the data
+    air_quality_data = pd.DataFrame(data)
 
     # Pre-process the data (similar to the command)
     air_quality_data['temp'] = air_quality_data['temp'].apply(lambda x: str(x).replace(',', '.'))
