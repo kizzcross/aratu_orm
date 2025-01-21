@@ -1,0 +1,71 @@
+{% extends 'clients_profiles/base.html' %}
+
+{% block title %}Mapa de Calor{% endblock %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+    <style>
+        #map-container {
+            width: 100%;
+            height: 70%;
+            height: 600px;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+        }
+    </style>    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Quality Dashboard</title>
+    <script>
+        function importData() {
+            fetch('/sensor/import/')
+                .then(response => response.json())
+                .then(data => alert(data.message))
+                .catch(error => alert('Erro na importação: ' + error));
+        }
+        function generateHeatmap() {
+            const pmType = document.getElementById('pmType').value;
+            fetch(`/clients_profiles/generate-heatmap/?pm_type=${pmType}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                    } else if (data.map_html) {
+                        document.getElementById('map-container').innerHTML = data.map_html;
+                    } else {
+                        alert('Erro desconhecido ao gerar o mapa.');
+                    }
+                })
+                .catch(error => alert('Erro ao gerar o heatmap: ' + error));
+        }
+    </script>
+</head>
+<body>
+    <h1>Air Quality Dashboard</h1>
+
+    <div>
+        <h2>Importar Dados</h2>
+        <button onclick="importData()">Importar Dados de Qualidade do Ar</button>
+    </div>
+
+    <div>
+        <h2>Gerar Heatmap</h2>
+        <label for="pmType">Selecione o tipo de PM:</label>
+        <select id="pmType">
+            <option value="pm1m">PM1.0 (Massa)</option>
+            <option value="pm25m">PM2.5 (Massa)</option>
+            <option value="pm4m">PM4.0 (Massa)</option>
+            <option value="pm10m">PM10 (Massa)</option>
+        </select>
+        <button onclick="generateHeatmap()">Gerar Heatmap</button>
+    </div>
+    
+    <div id="map-container">
+        <!-- O mapa será inserido aqui dinamicamente -->
+    </div>
+</body>
+</html>
+
+{% endblock %}
