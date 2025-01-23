@@ -1,7 +1,8 @@
 asgiref==3.8.1
-Django==5.0.6
+Django==4.2
 django-auditlog==3.0.0
 django-jsonfield==1.4.1
 djangorestframework==3.15.1
 six==1.16.0
 sqlparse==0.5.0
+celery==5.4
