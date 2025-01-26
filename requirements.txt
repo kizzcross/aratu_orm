@@ -5,6 +5,7 @@ django-jsonfield==1.4.1
 djangorestframework==3.15.1
 six==1.16.0
 sqlparse==0.5.0
+
 pandas==1.5.3          # Se estiver usando pandas
 psutil==5.9.1          # Se estiver usando psutil
 celery==5.2.7          # Se estiver usando Celery

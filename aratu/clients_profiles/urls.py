@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from . import views
-from .views import generate_heatmap
+from .views import generate_heatmap, get_date_limits, create_cluster, define_regions, train_model
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -26,4 +26,9 @@ urlpatterns = [
     path('generate-heatmap/', generate_heatmap, name='generate_heatmap'),
     path('report/', views.relatorio, name='relatorio'),
     path('data/', views.data, name='data'),
+
+    path('date-limits/', get_date_limits, name='get_date_limits'),
+    path('create-cluster/', create_cluster, name='create_cluster'),
+    path('define-regions/', define_regions, name='define_regions'),
+    path('train-model/', train_model, name='train_model'),
 ]
