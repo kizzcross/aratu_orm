@@ -191,6 +191,7 @@ def define_regions(request):
         latlon = db_heatmap[['lat', 'lon']].astype(np.float64).values
         r0 = 5 #parametro da clusterização - limite de variancia
         y = clusters_maia(xk_heatmap, r0)
+        db_heatmap['total_pm'] = db_heatmap['pm1'] + db_heatmap['pm25'] + db_heatmap['pm10']
         db_heatmap["cluster"] = y
         fig = clusters_plot(xk_heatmap, y, latlon)
         #graph_json = pio.to_json(fig)
@@ -200,11 +201,96 @@ def define_regions(request):
 
 # Endpoint para treinar modelo
 def train_model(request):
+    global db_heatmap
     if request.method == 'POST':
-        # Lógica para treinar o modelo
+        # Verifique se o db_heatmap existe e está carregado
+        print("db_heatmap:", db_heatmap.head() if not db_heatmap.empty else "db_heatmap está vazio")
+
+        #cluster = 0
+        cluster_counts = db_heatmap['cluster'].value_counts()
+        cluster = cluster_counts.idxmax()  # Cluster com mais dados
+        print(f"Cluster selecionado (com mais dados): {cluster}")
+
+        # Filtra as linhas do cluster diretamente
+        cluster_db = db_heatmap[db_heatmap['cluster'] == cluster]
+
+        if cluster_db.empty:
+            print("Nenhum dado encontrado para o cluster:", cluster)
+            return JsonResponse({'error': f'Nenhum dado encontrado para o cluster {cluster}'}, status=400)
+
+        # Garantir que a coluna 'total_pm' existe no DataFrame
+        required_columns = ['total_pm', 'umi', 'temp', 'pts']
+        missing_columns = [col for col in required_columns if col not in cluster_db.columns]
+        if missing_columns:
+            print("Colunas ausentes no cluster_db:", missing_columns)
+            return JsonResponse({'error': f'Colunas necessárias ausentes: {missing_columns}'}, status=400)
+
+        # Extrair os valores
+        try:
+            X_cluster_totalpm = cluster_db['total_pm'].astype(np.float64).values
+            X_cluster_umi = cluster_db['umi'].astype(np.float64).values
+            X_cluster_temp = cluster_db['temp'].astype(np.float64).values
+            X_cluster_pts = cluster_db['pts'].astype(np.float64).values
+        except Exception as e:
+            print("Erro ao converter colunas para np.float64:", e)
+            return JsonResponse({'error': 'Erro ao processar os dados do cluster'}, status=400)
+
+        X_cluster = X_cluster_totalpm
+        y_pm = cluster_db['total_pm'].astype(np.float64).values
+
+        # Garantir que há dados suficientes para dividir em treino e teste
+        if len(X_cluster) == 0:
+            print("X_cluster está vazio")
+            return JsonResponse({'error': 'Nenhum dado disponível para treino'}, status=400)
+
+        if len(X_cluster) < 2:
+            print("Dados insuficientes para dividir em treino e teste")
+            return JsonResponse({'error': 'Dados insuficientes para dividir em treino e teste'}, status=400)
+
+        # Dividir em treino e teste
+        n = int(len(X_cluster_totalpm) * 0.8)
+
+        X_cluster_train = X_cluster[:n]
+        y_pm_train = y_pm[:n]
+
+        X_cluster_test = X_cluster[n:]
+        y_pm_test = y_pm[n:]
+
+        # Verificar se há dados suficientes para treinar o modelo
+        if len(X_cluster_train) == 0 or len(y_pm_train) == 0:
+            print("Dados insuficientes para treinar o modelo")
+            return JsonResponse({'error': 'Dados insuficientes para treinar o modelo'}, status=400)
+
+        # Treinar o modelo
+        try:
+            model, tree = model_singh(X_cluster_train, y_pm_train)  # Criação do modelo
+            NewData = predict(X_cluster_test, model)  # Previsões do modelo
+        except Exception as e:
+            print("Erro ao treinar o modelo:", e)
+            return JsonResponse({'error': 'Erro ao treinar o modelo'}, status=500)
+            #rmse(fore, real)
+        try:
+            # Real (valores reais) e forecast (previsões)
+            real = np.array(X_cluster_totalpm[n:])  # Garantir que seja um numpy array
+            fore = np.array(NewData)  # Garantir que seja um numpy array
+
+            # Calcular RMSE - O cálculo pode ser feito diretamente com numpy arrays
+            error = rmse(fore, real)
+
+            # Converter para lista para o JSON, se necessário
+            return JsonResponse({
+                'real': real.tolist(),  # Converte para lista para envio
+                'forecast': fore.tolist(),
+                'rmse': error
+            })
+        except Exception as e:
+            print("Erro ao calcular RMSE ou gerar gráfico:", e)
+            return JsonResponse({'error': 'Erro ao processar os dados'}, status=500)
 
         return JsonResponse({'message': 'Modelo treinado com sucesso!'})
     return JsonResponse({'error': 'Método não permitido'}, status=405)
+
+
 
 @permission_required('clients_profiles.view_airqualitydata', raise_exception=True)
 def generate_heatmap(request):
@@ -254,7 +340,6 @@ def generate_heatmap(request):
 
     # Retornar o HTML do mapa como parte da resposta JSON
     return JsonResponse({'map_html': map_html})
-
 
 #---------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -656,6 +741,35 @@ def clusters_plot(x, y, ll):
         return fig.show()
 
 
+
+#START TREE
+def initialize_tree(root_value):                            # Função para inicializar a arvore
+    return [[root_value, None, None, None]]                 # Inicializa a árvore com o nó da raiz, sendo o prmeiro nó e com seu valor na primeira posição
+
+#INSERR NODE IN TREE
+def insert(tree, value):                                    # Função para inserir os nó na arvore
+    
+    current_index = 0                                       # Começa na raiz
+    while True:             
+        
+        current_node = tree[current_index]                  # Analisa inicialmento o nó da raiz e depois os outros nós
+
+        if value < current_node[0]:                         # Verifica se o valor de entrada da função é menor que o nó analisado - Inserção à esquerda
+            if current_node[1] is None:                     # Verifica se o nó da raiz possui filho esquerdo
+                current_node[1] = len(tree)                 # Se não possuir, adicona na segunda posição (filho esquerdo) o index do nó filho do mesmo tamanho da lista tree no momento (igual ao index do novo nó)
+                tree.append([value, None, None, None])      # Adicona esse novo nó a lista tree apenas com o seu valor 
+                break                                       # Finaliza o loop e a função apos inserir o nó
+            else:                                           # Se o nó analisado possuir filho esquerdo
+                current_index = current_node[1]             # O loop se inicia novamente com o filho esquerdo sendo analisado
+        else:                                               # Verifica se o valor de entrada da função é maior que o nó analisado - Inserção à direita
+            if current_node[2] is None:                     # Verifica se o nó da raiz possui filho direito
+                current_node[2] = len(tree)                 # Se não possuir, adicona na terceira posição (filho direito) o index do nó filho do mesmo tamanho da lista tree no momento (igual ao index do novo nó)
+                tree.append([value, None, None, None])      # Adicona esse novo nó a lista tree apenas com o seu valor
+                break                                       # Finaliza o loop e a função apos inserir o nó
+            else:                                           # Se o nó analisado possuir filho direito
+                current_index = current_node[2]             # O loop se inicia novamente com o filho direito sendo analisado
+
+#TREINAMENTO DO MODELO
 def model_singh(X,y):
 
     # Entrada -> X (dados de treino) / Saidas -> y (saidas de treino)
@@ -1081,6 +1195,7 @@ def model_singh(X,y):
             
             return model_singh, tree                        # Retorna a saida da função
 
+#PREVISAO
 def predict(X, model_singh):
     
     # Entrada -> X (dados a serem previstos) e model_singh (modelo treinado) / Saidas -> y (saidas previstas)
@@ -1147,11 +1262,13 @@ def predict(X, model_singh):
 
         return NewData                              # Retorna a saida da função
 
-def rmse(predictions, targets):                                     # Função para calculo do RMSE
+# Função para calculo do RMSE
+def rmse(predictions, targets):                                     
     rmse_result = np.sqrt(np.mean((predictions - targets) ** 2))    # Reliza o calculo da função e salva na variavel rmse
     return rmse_result                                              # Retorna como valor final da função o resultado do rmse
 
-def NYVE(targets):                  # Função para calculo do NYVE
+# Função para calculo do NYVE
+def NYVE(targets):                  
     nyve = targets[:-1]             # Retira o ultimo valor da lista e cria uma lista onde a previsão é o resultado do dia anterior
     y = targets[1:]                 # Retira o primeiro valor da lista e cria a lista dos valores reais
     result = rmse(nyve, y)          # É realizado o rmse dessa previsão e salvo na variavel result

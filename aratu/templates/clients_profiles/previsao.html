@@ -76,7 +76,7 @@
 
     <div id="data-preview"></div>
     <div id="plot-container" style="margin-top: 20px;"></div>
-
+    <canvas id="myChart" width="400" height="200"></canvas>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -192,14 +192,14 @@
                     trainModelButton.style.display = 'inline-block';
                 }
             });
-
+/*
             trainModelButton.addEventListener('click', async () => {
                 const data = await sendRequest('/clients_profiles/train-model/', 'POST');
                 if (data) {
                     alert(data.message);
                 }
             });
-
+*/
             fetchDateLimits();
         });
         document.getElementById('define-regions').addEventListener('click', async () => {
@@ -224,7 +224,111 @@
             }
         });
 
+
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const trainModelButton = document.getElementById('train-model');
+            const plotContainer = document.getElementById('plot-container');
+    
+            // Função que envia requisições para o back-end
+            async function sendRequest(url, method) {
+                try {
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCSRFToken()
+                        }
+                    });
+                    return await response.json();
+                } catch (error) {
+                    console.error('Erro ao enviar requisição:', error);
+                }
+            }
+    
+            // Função para obter o CSRF Token
+            function getCSRFToken() {
+                return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            }
+    
+            // Função para renderizar o gráfico
+            function renderChart(data) {
+                const { real, forecast, rmse } = data;
+    
+                // Limpar o container de gráficos antes de adicionar o novo gráfico
+                plotContainer.innerHTML = '';
+    
+                // Criar o gráfico no canvas
+                const ctx = document.getElementById('myChart').getContext('2d');
+    
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: real.map((_, index) => `Ponto ${index + 1}`),  // Labels dinamicamente
+                        datasets: [
+                            {
+                                label: 'Real',
+                                data: real,
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                borderWidth: 2,
+                                tension: 0.4
+                            },
+                            {
+                                label: 'Previsto',
+                                data: forecast,
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                borderWidth: 2,
+                                tension: 0.4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `Gráfico de Previsão - RMSE: ${rmse.toFixed(2)}`
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Pontos'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Valores'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+    
+            // Evento de click no botão de treino do modelo
+            trainModelButton.addEventListener('click', async () => {
+                const data = await sendRequest('/clients_profiles/train-model/', 'POST');
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+    
+                alert(data.message);  // Mostra a mensagem que o back-end retorna
+    
+                // Renderiza o gráfico com os dados
+                renderChart(data);
+            });
+        });
+    </script>
+    
 </body>
 </html>
 {% endblock %}
