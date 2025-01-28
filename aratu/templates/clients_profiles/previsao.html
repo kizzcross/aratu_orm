@@ -5,129 +5,63 @@
 {% block content %}
 <!DOCTYPE html>
 <html>
-<h1>Página de Previsão</h1>
-
 <head>
-    <!-- Inclui o token CSRF -->
     <meta name="csrf-token" content="{{ csrf_token }}">
-
-    <script>
-        async function fetchDateLimits() {
-            try {
-                const response = await fetch('/date-limits/');
-                const data = await response.json();
-
-                function formatDate(dateString) {
-                    const date = new Date(dateString);
-                    if (isNaN(date)) {
-                        return ''; // Retorna string vazia se a data for inválida
-                    }
-                    const year = date.getFullYear();
-                    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                    const day = date.getDate().toString().padStart(2, '0');
-                    return `${year}-${month}-${day}`;
-                }
-
-                if (data.start_date && data.end_date) {
-                    const startDate = formatDate(data.start_date);
-                    const endDate = formatDate(data.end_date);
-
-                    if (startDate && endDate) {
-                        document.getElementById('start-date').min = startDate;
-                        document.getElementById('start-date').max = endDate;
-                        document.getElementById('end-date').min = startDate;
-                        document.getElementById('end-date').max = endDate;
-
-                        document.getElementById('min-date-display').textContent = startDate;
-                        document.getElementById('max-date-display').textContent = endDate;
-                    } else {
-                        console.error('Data inválida recebida da API');
-                    }
-                }
-            } catch (error) {
-                console.error('Erro ao buscar limites de data:', error);
-            }
+    <style>
+        body {
+            font-family: Arial, sans-serif;
         }
 
-        // Função para obter o token CSRF
-        function getCSRFToken() {
-            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        .form-group {
+            margin-bottom: 20px;
         }
 
-        // Função para validar datas
-        function isDateValid(dateString) {
-            const date = new Date(dateString);
-            return !isNaN(date);
+        #data-preview table {
+            border-collapse: collapse;
+            width: 100%;
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchDateLimits();
+        #data-preview th, #data-preview td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
 
-            const startDateInput = document.getElementById('start-date');
-            const endDateInput = document.getElementById('end-date');
+        #data-preview th {
+            background-color: #f2f2f2;
+            text-align: left;
+        }
 
-            startDateInput.addEventListener('change', toggleClusterButton);
-            endDateInput.addEventListener('change', toggleClusterButton);
+        button {
+            margin-right: 10px;
+            padding: 10px 20px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
 
-            function toggleClusterButton() {
-                const startDate = startDateInput.value;
-                const endDate = endDateInput.value;
-                const clusterButton = document.getElementById('generate-cluster');
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
 
-                if (startDate && endDate && isDateValid(startDate) && isDateValid(endDate)) {
-                    clusterButton.style.display = 'inline-block';
-                } else {
-                    clusterButton.style.display = 'none';
-                }
-            }
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
 
-            // Função para enviar requisições com CSRF token
-            async function sendRequest(url, method) {
-                try {
-                    const response = await fetch(url, {
-                        method: method,
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCSRFToken() // Inclui o token CSRF
-                        },
-                    });
-                    const data = await response.json();
-                    return data;
-                } catch (error) {
-                    console.error('Erro ao enviar requisição:', error);
-                }
-            }
-
-            // Eventos para os botões
-            document.getElementById('generate-cluster').addEventListener('click', async () => {
-                const data = await sendRequest('/clients_profiles/create-cluster/', 'POST');
-                if (data) {
-                    alert(data.message);
-                    document.getElementById('define-regions').style.display = 'inline-block';
-                }
-            });
-
-            document.getElementById('define-regions').addEventListener('click', async () => {
-                const data = await sendRequest('/clients_profiles/define-regions/', 'POST');
-                if (data) {
-                    alert(data.message);
-                    document.getElementById('train-model').style.display = 'inline-block';
-                }
-            });
-
-            document.getElementById('train-model').addEventListener('click', async () => {
-                const data = await sendRequest('/clients_profiles/train-model/', 'POST');
-                if (data) {
-                    alert(data.message);
-                }
-            });
-        });
-    </script>
+        #data-preview {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            display: none;
+        }
+    </style>
 </head>
 <body>
+    <h1>Página de Previsão</h1>
+
     <form id="date-form" method="POST">
-        <div id="start-date-display"></div>
-        <div id="end-date-display"></div>
         <div class="form-group">
             <label for="start-date">Data de Início:</label>
             <input type="date" id="start-date" name="start-date" required>
@@ -135,10 +69,162 @@
             <input type="date" id="end-date" name="end-date" required>
         </div>
         <p>Intervalo de Datas: <span id="min-date-display"></span> até <span id="max-date-display"></span></p>
-        <button id="generate-cluster" type="button" style="display: none;">Criar Cluster Geográfico</button>
+        <button id="generate-cluster" type="button" disabled>Criar Cluster Geográfico</button>
         <button id="define-regions" type="button" style="display: none;">Definir Regiões</button>
         <button id="train-model" type="button" style="display: none;">Treinar Modelo</button>
     </form>
+
+    <div id="data-preview"></div>
+    <div id="plot-container" style="margin-top: 20px;"></div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+            const clusterButton = document.getElementById('generate-cluster');
+            const defineRegionsButton = document.getElementById('define-regions');
+            const trainModelButton = document.getElementById('train-model');
+            const dataPreviewDiv = document.getElementById('data-preview');
+
+            // Helper para CSRF
+            function getCSRFToken() {
+                return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            }
+
+            // Atualiza o estado do botão de cluster
+            function toggleClusterButton() {
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+                clusterButton.disabled = !(startDate && endDate && isDateValid(startDate) && isDateValid(endDate));
+            }
+
+            // Valida uma data
+            function isDateValid(dateString) {
+                const date = new Date(dateString);
+                return !isNaN(date);
+            }
+
+            // Busca os limites de data da API
+            async function fetchDateLimits() {
+                try {
+                    const response = await fetch('/date-limits/');
+                    const data = await response.json();
+
+                    if (data.start_date && data.end_date) {
+                        const startDate = formatDate(data.start_date);
+                        const endDate = formatDate(data.end_date);
+
+                        if (startDate && endDate) {
+                            startDateInput.min = startDate;
+                            startDateInput.max = endDate;
+                            endDateInput.min = startDate;
+                            endDateInput.max = endDate;
+
+                            document.getElementById('min-date-display').textContent = startDate;
+                            document.getElementById('max-date-display').textContent = endDate;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar limites de data:', error);
+                }
+            }
+
+            // Formata uma data no formato YYYY-MM-DD
+            function formatDate(dateString) {
+                const date = new Date(dateString);
+                if (isNaN(date)) return '';
+                const year = date.getFullYear();
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            // Função para enviar requisições
+            async function sendRequest(url, method, payload = {}) {
+                try {
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCSRFToken()
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    return await response.json();
+                } catch (error) {
+                    console.error('Erro ao enviar requisição:', error);
+                }
+            }
+
+            // Eventos
+            startDateInput.addEventListener('change', toggleClusterButton);
+            endDateInput.addEventListener('change', toggleClusterButton);
+
+            clusterButton.addEventListener('click', async () => {
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+
+                const data = await sendRequest('/clients_profiles/create-cluster/', 'POST', { start_date: startDate, end_date: endDate });
+
+                if (data) {
+                    alert(data.message);
+
+                    if (data.head && data.tail) {
+                        dataPreviewDiv.innerHTML = `
+                            <h3>Preview dos Dados</h3>
+                            <h4>Head</h4>
+                            ${data.head}
+                            <h4>Tail</h4>
+                            ${data.tail}
+                        `;
+                        dataPreviewDiv.style.display = 'block';
+                    }
+
+                    defineRegionsButton.style.display = 'inline-block';
+                }
+            });
+
+            defineRegionsButton.addEventListener('click', async () => {
+                const data = await sendRequest('/clients_profiles/define-regions/', 'POST');
+                if (data) {
+                    alert(data.message);
+                    trainModelButton.style.display = 'inline-block';
+                }
+            });
+
+            trainModelButton.addEventListener('click', async () => {
+                const data = await sendRequest('/clients_profiles/train-model/', 'POST');
+                if (data) {
+                    alert(data.message);
+                }
+            });
+
+            fetchDateLimits();
+        });
+        document.getElementById('define-regions').addEventListener('click', async () => {
+            const data = await sendRequest('/clients_profiles/define-regions/', 'POST');
+            if (data) {
+                alert(data.message);
+                trainModelButton.style.display = 'inline-block';
+
+                // Buscar e renderizar o gráfico
+                const plotData = await fetch('/clients_profiles/get-plot/');
+                const plotResponse = await plotData.json();
+                if (plotResponse.plot) {
+                    const plotContainer = document.getElementById('plot-container');
+                    plotContainer.innerHTML = '';
+                    const graphDiv = document.createElement('div');
+                    graphDiv.id = 'plotly-graph';
+                    plotContainer.appendChild(graphDiv);
+                    Plotly.newPlot('plotly-graph', JSON.parse(plotResponse.plot).data, JSON.parse(plotResponse.plot).layout);
+                } else {
+                    alert('Erro ao gerar o gráfico.');
+                }
+            }
+        });
+
+    </script>
 </body>
 </html>
 {% endblock %}

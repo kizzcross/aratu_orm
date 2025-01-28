@@ -31,4 +31,5 @@ urlpatterns = [
     path('create-cluster/', create_cluster, name='create_cluster'),
     path('define-regions/', define_regions, name='define_regions'),
     path('train-model/', train_model, name='train_model'),
+    #path('clients_profiles/forecast/cluster_geografico/', views.cluster_geografico, name='cluster_geografico'),
 ]
