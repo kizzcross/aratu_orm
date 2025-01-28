@@ -128,14 +128,14 @@ def create_cluster(request):
                 return JsonResponse({'error': 'Nenhum dado encontrado para o intervalo fornecido'}, status=404)
 
             # Gerando HTML do cabeçalho e rodapé
-            head_html = db_heatmap.head().to_html(index=False)
-            tail_html = db_heatmap.tail().to_html(index=False)
+            head_html = db_heatmap.to_html(index=False)
+            #tail_html = db_heatmap.tail().to_html(index=False)
             print("HTML gerado com sucesso")  # Debug da geração do HTML
 
             return JsonResponse({
                 'message': 'Cluster geográfico criado com sucesso!',
                 'head': head_html,
-                'tail': tail_html
+                #'tail': tail_html
             })
         except Exception as e:
             print(f"Erro inesperado: {str(e)}")  # Debug de erros

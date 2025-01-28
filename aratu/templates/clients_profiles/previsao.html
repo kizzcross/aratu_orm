@@ -57,6 +57,10 @@
             display: none;
         }
     </style>
+    <!-- Dependências do DataTables -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+    <script type="text/javascript" charset="utf8" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>    
 </head>
 <body>
     <h1>Página de Previsão</h1>
@@ -170,15 +174,17 @@
                 if (data) {
                     alert(data.message);
 
-                    if (data.head && data.tail) {
+                    if (data.head) {
                         dataPreviewDiv.innerHTML = `
                             <h3>Preview dos Dados</h3>
-                            <h4>Head</h4>
+                            <table id="data-table" class="display">
                             ${data.head}
-                            <h4>Tail</h4>
-                            ${data.tail}
+                            </table>
                         `;
                         dataPreviewDiv.style.display = 'block';
+                        dataPreviewDiv.style.maxWidth = '100%';  // Ajusta a largura para o tamanho da tela
+                        dataPreviewDiv.style.maxHeight = '300px';  // Limita a altura da tabela
+                        dataPreviewDiv.style.overflowY = 'auto';  // Adiciona rolagem vertical
                     }
 
                     defineRegionsButton.style.display = 'inline-block';
