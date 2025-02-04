@@ -56,6 +56,10 @@
             border: 1px solid #ccc;
             display: none;
         }
+        #myChart {
+            max-height: 300px;
+            max-width: fit-content;
+        }
     </style>
     <!-- Dependências do DataTables -->
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
@@ -80,7 +84,10 @@
 
     <div id="data-preview"></div>
     <div id="plot-container" style="margin-top: 20px;"></div>
-    <canvas id="myChart" width="400" height="200"></canvas>
+    <div id="plot-container" style="width: 95%; height: 300px; margin: auto;">
+        <canvas id="myChart" width="400" height="200"></canvas>
+    </div>
+    
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
