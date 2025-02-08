@@ -39,6 +39,7 @@ import plotly.io as pio
 from plotly.io import to_html
 
 db_heatmap = pd.DataFrame()
+trained_models_list = []
 #-------------------------------------------------------------------------
 
 # Lista de tipos de PM válidos
@@ -188,109 +189,200 @@ def define_regions(request):
     if request.method == 'POST':
         # Lógica para definir regiões
         xk_heatmap = db_heatmap[['lat', 'lon']].astype(np.float64).values
-        latlon = db_heatmap[['lat', 'lon']].astype(np.float64).values
+        #latlon = db_heatmap[['lat', 'lon']].astype(np.float64).values
         r0 = 5 #parametro da clusterização - limite de variancia
         y = clusters_maia(xk_heatmap, r0)
         db_heatmap['total_pm'] = db_heatmap['pm1'] + db_heatmap['pm25'] + db_heatmap['pm10']
         db_heatmap["cluster"] = y
-        fig = clusters_plot(xk_heatmap, y, latlon)
+        #fig = clusters_plot(xk_heatmap, y, latlon)
         #graph_json = pio.to_json(fig)
         #return JsonResponse({'plot': fig})
-        return JsonResponse({'message': 'Regiões definidas com sucesso!'})
+        
+        #dic data para processar no front com JS e excluir o 'clusters_plot'
+        data = {
+            'coordinates': [
+                {
+                    'latitude': float(lat),        # Conversão para float nativo do Python
+                    'longitude': float(lon),       # Conversão para float nativo do Python
+                    'cluster': int(cluster)        # Conversão para int nativo do Python
+                }
+                for lat, lon, cluster in zip(
+                    xk_heatmap[:, 0],  # Latitude (segunda coluna)
+                    xk_heatmap[:, 1],  # Longitude (primeira coluna)
+                    y
+                )
+            ]
+        }
+        
+        return JsonResponse(data, status=200)
+        #return JsonResponse({'message': 'Regiões definidas com sucesso!'})
     return JsonResponse({'error': 'Método não permitido'}, status=405)
 
 # Endpoint para treinar modelo
 def train_model(request):
-    global db_heatmap
+    global db_heatmap, trained_models_list
     if request.method == 'POST':
         # Verifique se o db_heatmap existe e está carregado
         print("db_heatmap:", db_heatmap.head() if not db_heatmap.empty else "db_heatmap está vazio")
 
         #cluster = 0
-        cluster_counts = db_heatmap['cluster'].value_counts()
-        cluster = cluster_counts.idxmax()  # Cluster com mais dados
-        print(f"Cluster selecionado (com mais dados): {cluster}")
+        #cluster_counts = db_heatmap['cluster'].value_counts()
+        #cluster = cluster_counts.idxmax()  # Cluster com mais dados
+        #print(f"Cluster selecionado (com mais dados): {cluster}")
+        
+        #Receber os clusters selecionados do front-end
+        print(request.body)
+        data = json.loads(request.body)
+        selected_clusters = data.get('clusters', [])
+        #selected_clusters = request.POST.getlist('clusters')  
+        #selected_clusters = list(map(int, selected_clusters))  # Converter para inteiros
+        selected_clusters = [int(cluster) for cluster in selected_clusters]  # Filtrar apenas os dígitos
+        print("Clusters selecionados:", selected_clusters)
+        
+        # Verificar se clusters foram enviados
+        if not selected_clusters:
+            return JsonResponse({'error': 'Nenhum cluster selecionado.'}, status=400)
 
-        # Filtra as linhas do cluster diretamente
-        cluster_db = db_heatmap[db_heatmap['cluster'] == cluster]
+        # Lista para armazenar os resultados de cada cluster
+        models_results = []
+        for cluster in selected_clusters:
+            print(f"Processando o cluster: {cluster}")
+            # Filtra as linhas do cluster diretamente
+            cluster_db = db_heatmap[db_heatmap['cluster'] == cluster]
 
-        if cluster_db.empty:
-            print("Nenhum dado encontrado para o cluster:", cluster)
-            return JsonResponse({'error': f'Nenhum dado encontrado para o cluster {cluster}'}, status=400)
+            if cluster_db.empty:
+                print("Nenhum dado encontrado para o cluster:", cluster)
+                continue
+                #return JsonResponse({'error': f'Nenhum dado encontrado para o cluster {cluster}'}, status=400)
 
-        # Garantir que a coluna 'total_pm' existe no DataFrame
-        required_columns = ['total_pm', 'umi', 'temp', 'pts']
-        missing_columns = [col for col in required_columns if col not in cluster_db.columns]
-        if missing_columns:
-            print("Colunas ausentes no cluster_db:", missing_columns)
-            return JsonResponse({'error': f'Colunas necessárias ausentes: {missing_columns}'}, status=400)
+            # Garantir que a coluna 'total_pm' existe no DataFrame
+            required_columns = ['total_pm', 'umi', 'temp', 'pts']
+            missing_columns = [col for col in required_columns if col not in cluster_db.columns]
+            if missing_columns:
+                print(f"Colunas ausentes para o cluster {cluster}: {missing_columns}")
+                #return JsonResponse({'error': f'Colunas necessárias ausentes: {missing_columns}'}, status=400)
+                continue
+            # Extrair os valores
+            '''
+            try:
+                X_cluster_totalpm = cluster_db['total_pm'].astype(np.float64).values
+                X_cluster_umi = cluster_db['umi'].astype(np.float64).values
+                X_cluster_temp = cluster_db['temp'].astype(np.float64).values
+                X_cluster_pts = cluster_db['pts'].astype(np.float64).values
+            except Exception as e:
+                print("Erro ao converter colunas para np.float64:", e)
+                return JsonResponse({'error': 'Erro ao processar os dados do cluster'}, status=400)
+            '''
+            try:
+                X_cluster_totalpm = cluster_db['total_pm'].astype(np.float64).values
+                y_pm = cluster_db['total_pm'].astype(np.float64).values
+            except Exception as e:
+                print(f"Erro ao converter colunas para o cluster {cluster}:", e)
+                continue
+            '''
+            X_cluster = X_cluster_totalpm
+            y_pm = cluster_db['total_pm'].astype(np.float64).values
 
-        # Extrair os valores
-        try:
-            X_cluster_totalpm = cluster_db['total_pm'].astype(np.float64).values
-            X_cluster_umi = cluster_db['umi'].astype(np.float64).values
-            X_cluster_temp = cluster_db['temp'].astype(np.float64).values
-            X_cluster_pts = cluster_db['pts'].astype(np.float64).values
-        except Exception as e:
-            print("Erro ao converter colunas para np.float64:", e)
-            return JsonResponse({'error': 'Erro ao processar os dados do cluster'}, status=400)
+            # Garantir que há dados suficientes para dividir em treino e teste
+            if len(X_cluster) == 0:
+                print("X_cluster está vazio")
+                return JsonResponse({'error': 'Nenhum dado disponível para treino'}, status=400)
 
-        X_cluster = X_cluster_totalpm
-        y_pm = cluster_db['total_pm'].astype(np.float64).values
+            if len(X_cluster) < 2:
+                print("Dados insuficientes para dividir em treino e teste")
+                return JsonResponse({'error': 'Dados insuficientes para dividir em treino e teste'}, status=400)
 
-        # Garantir que há dados suficientes para dividir em treino e teste
-        if len(X_cluster) == 0:
-            print("X_cluster está vazio")
-            return JsonResponse({'error': 'Nenhum dado disponível para treino'}, status=400)
+            # Dividir em treino e teste
+            n = int(len(X_cluster_totalpm) * 0.8)
 
-        if len(X_cluster) < 2:
-            print("Dados insuficientes para dividir em treino e teste")
-            return JsonResponse({'error': 'Dados insuficientes para dividir em treino e teste'}, status=400)
+            X_cluster_train = X_cluster[:n]
+            y_pm_train = y_pm[:n]
 
-        # Dividir em treino e teste
-        n = int(len(X_cluster_totalpm) * 0.8)
+            X_cluster_test = X_cluster[n:]
+            y_pm_test = y_pm[n:]
 
-        X_cluster_train = X_cluster[:n]
-        y_pm_train = y_pm[:n]
+            # Verificar se há dados suficientes para treinar o modelo
+            if len(X_cluster_train) == 0 or len(y_pm_train) == 0:
+                print("Dados insuficientes para treinar o modelo")
+                return JsonResponse({'error': 'Dados insuficientes para treinar o modelo'}, status=400)
+            '''
+            if len(X_cluster_totalpm) < 2:
+                print(f"Dados insuficientes para o cluster {cluster}")
+                continue
 
-        X_cluster_test = X_cluster[n:]
-        y_pm_test = y_pm[n:]
+            # 🔍 Dividir em treino e teste
+            n = int(len(X_cluster_totalpm) * 0.8)
+            X_train, y_train = X_cluster_totalpm[:n], y_pm[:n]
+            X_test, y_test = X_cluster_totalpm[n:], y_pm[n:]
 
-        # Verificar se há dados suficientes para treinar o modelo
-        if len(X_cluster_train) == 0 or len(y_pm_train) == 0:
-            print("Dados insuficientes para treinar o modelo")
-            return JsonResponse({'error': 'Dados insuficientes para treinar o modelo'}, status=400)
+            if len(X_train) == 0 or len(y_train) == 0:
+                print(f"Dados insuficientes para o treino do cluster {cluster}")
+                continue
+            '''
+            # Treinar o modelo
+            try:
+                model, tree = model_singh(X_cluster_train, y_pm_train)  # Criação do modelo
+                NewData = predict(X_cluster_test, model)  # Previsões do modelo
+            except Exception as e:
+                print("Erro ao treinar o modelo:", e)
+                return JsonResponse({'error': 'Erro ao treinar o modelo'}, status=500)
+                #rmse(fore, real)
+            '''
+            #Treinar o modelo
+            try:
+                model, tree = model_singh(X_train, y_train)
+                predictions = predict(X_test, model)
+            except Exception as e:
+                print(f"Erro ao treinar o modelo para o cluster {cluster}:", e)
+                continue
+            '''
+            try:
+                # Real (valores reais) e forecast (previsões)
+                real = np.array(X_cluster_totalpm[n:])  # Garantir que seja um numpy array
+                fore = np.array(NewData)  # Garantir que seja um numpy array
 
-        # Treinar o modelo
-        try:
-            model, tree = model_singh(X_cluster_train, y_pm_train)  # Criação do modelo
-            NewData = predict(X_cluster_test, model)  # Previsões do modelo
-        except Exception as e:
-            print("Erro ao treinar o modelo:", e)
-            return JsonResponse({'error': 'Erro ao treinar o modelo'}, status=500)
-            #rmse(fore, real)
-        try:
-            # Real (valores reais) e forecast (previsões)
-            real = np.array(X_cluster_totalpm[n:])  # Garantir que seja um numpy array
-            fore = np.array(NewData)  # Garantir que seja um numpy array
+                # Calcular RMSE - O cálculo pode ser feito diretamente com numpy arrays
+                error = rmse(fore, real)
 
-            # Calcular RMSE - O cálculo pode ser feito diretamente com numpy arrays
-            error = rmse(fore, real)
+                # Converter para lista para o JSON, se necessário
+                return JsonResponse({
+                    'real': real.tolist(),  # Converte para lista para envio
+                    'forecast': fore.tolist(),
+                    'rmse': error
+                })
+            except Exception as e:
+                print("Erro ao calcular RMSE ou gerar gráfico:", e)
+                return JsonResponse({'error': 'Erro ao processar os dados'}, status=500)
+            '''
+            # Calcular o RMSE
+            try:
+                rmse_error = rmse(predictions, y_test)
+                result = {
+                    'cluster': cluster,
+                    'real': y_test,#.tolist(),
+                    'forecast': predictions,#.tolist(),
+                    'rmse': rmse_error
+                }
 
-            # Converter para lista para o JSON, se necessário
-            return JsonResponse({
-                'real': real.tolist(),  # Converte para lista para envio
-                'forecast': fore.tolist(),
-                'rmse': error
-            })
-        except Exception as e:
-            print("Erro ao calcular RMSE ou gerar gráfico:", e)
-            return JsonResponse({'error': 'Erro ao processar os dados'}, status=500)
+                models_results.append(result)  # Armazena o resultado
 
-        return JsonResponse({'message': 'Modelo treinado com sucesso!'})
+            except Exception as e:
+                print(f"Erro ao calcular RMSE para o cluster {cluster}:", e)
+                continue
+            # Salvar o conjunto de modelos treinados
+          # Caso contrário, retorna o dado sem alteração
+        models_results = convert_ndarray_to_list(models_results)
+        trained_models_list = models_results
+            #print(f"Modelo {cluster}: ", models_results)
+            #print(type(models_results))
+            # Retornar os resultados para o front-end
+        if models_results:
+            print(f"Modelos treinados com sucesso! {models_results}")
+            return JsonResponse({'message': 'Modelos treinados com sucesso!', 'models': models_results})
+        else:
+            return JsonResponse({'error': 'Nenhum modelo foi treinado com sucesso.'}, status=400)
+        #return JsonResponse({'message': 'Modelos treinados com sucesso!', 'models': trained_models_list})
     return JsonResponse({'error': 'Método não permitido'}, status=405)
-
-
 
 @permission_required('clients_profiles.view_airqualitydata', raise_exception=True)
 def generate_heatmap(request):
@@ -342,6 +434,16 @@ def generate_heatmap(request):
     return JsonResponse({'map_html': map_html})
 
 #---------------------------------------------------------------------------------------------------------------------------------------------
+def convert_ndarray_to_list(data):
+    """Função recursiva que converte qualquer ndarray em listas, inclusive dentro de dicionários e listas."""
+    if isinstance(data, np.ndarray):  # Se for um ndarray, converte para lista
+        return data.tolist()
+    elif isinstance(data, dict):  # Se for um dicionário, converte todos os valores
+        return {key: convert_ndarray_to_list(value) for key, value in data.items()}
+    elif isinstance(data, list):  # Se for uma lista, converte todos os elementos
+        return [convert_ndarray_to_list(item) for item in data]
+    return data  # Caso contrário, retorna o dado sem alteração
+
 
 class EvolvingClustering:
     def __init__(self, macro_cluster_update=1,
@@ -696,10 +798,9 @@ class EvolvingClustering:
 
                     self.graph.remove_node(mc["id"])
 
-
 def clusters_maia(x, r0):
 
-    print(f'r0 = {r0}')
+    #print(f'r0 = {r0}')
 
     evol = EvolvingClustering(macro_cluster_update=1, variance_limit=r0, debug=False)
     evol.fit(x)
@@ -739,8 +840,6 @@ def clusters_plot(x, y, ll):
             yaxis=dict(gridcolor='gray')
         )
         return fig.show()
-
-
 
 #START TREE
 def initialize_tree(root_value):                            # Função para inicializar a arvore
