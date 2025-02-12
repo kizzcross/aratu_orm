@@ -96,9 +96,19 @@
             <input type="date" id="end-date" name="end-date" required>
         </div>
         <p>Intervalo de Datas: <span id="min-date-display"></span> até <span id="max-date-display"></span></p>
+        <!--
+        ##############################################################################################################################################################
+        Unir execuções dos botões 'Criar Cluster' & 'Definir Regioes'
+        ##############################################################################################################################################################
+        -->
         <button id="generate-cluster" type="button" disabled>Criar Cluster Geográfico</button>
         <button id="define-regions" type="button" style="display: none;">Definir Regiões</button>
-        <button id="train-model" type="button" style="display: none;">Treinar Modelo</button>
+        <button id="train-model" type="button" style="display: none;"> Fazer Previsão</button>
+        <!--
+        ##############################################################################################################################################################
+        Add mensangem para quando não tiver previsão e usuario clicar em relatório
+        ##############################################################################################################################################################
+        -->
     </form>
 
     <div id="data-preview"></div>
