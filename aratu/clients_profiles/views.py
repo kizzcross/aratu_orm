@@ -86,11 +86,13 @@ def create_cluster(request):
             start_date = body.get('start_date')
             end_date = body.get('end_date')
             print(f"Datas extraídas: start_date={start_date}, end_date={end_date}")  # Debug das datas
+            forecast_period = body.get('forecast_period')  # Capturando o período de previsão
+            print(f"Período de previsão recebido: forecast_period={forecast_period}") #Debug do período de previsão
 
             # Validando as datas recebidas
-            if not start_date or not end_date:
-                print("Erro: Datas de início ou fim ausentes")
-                return JsonResponse({'error': 'Datas de início e fim são obrigatórias'}, status=400)
+            if not start_date or not end_date or not forecast_period:
+                print("Erro: Valor de algum dos campos está ausente")
+                return JsonResponse({'error': 'Todos os campos são obrigatórios'}, status=400)
 
             # Convertendo as datas para objetos datetime
             try:
