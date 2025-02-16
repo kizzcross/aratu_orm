@@ -104,7 +104,7 @@
         ##############################################################################################################################################################
         -->
         <button id="generate-cluster" type="button" disabled>Criar Cluster Geográfico</button>
-        <button id="define-regions" type="button" style="display: none;">Definir Regiões</button>
+        <!--<button id="define-regions" type="button" style="display: none;">Definir Regiões</button>-->
         <button id="train-model" type="button" style="display: none;"> Fazer Previsão</button>
         <!--
         ##############################################################################################################################################################
@@ -131,7 +131,7 @@
             const endDateInput = document.getElementById('end-date');
             const forecastPeriodInput = document.getElementById('forecast-period');
             const clusterButton = document.getElementById('generate-cluster');
-            const defineRegionsButton = document.getElementById('define-regions');
+            //const defineRegionsButton = document.getElementById('define-regions');
             const trainModelButton = document.getElementById('train-model');
             const dataPreviewDiv = document.getElementById('data-preview');
 
@@ -209,36 +209,6 @@
 
             }
 
-            clusterButton.addEventListener('click', async () => {
-                const data = await sendRequest('/clients_profiles/create-cluster/', 'POST', {
-                    start_date: startDateInput.value,
-                    end_date: endDateInput.value,
-                    forecast_period: forecastPeriodInput.value //Envia o período de previsão
-                });
-                if (data) {
-                    alert(data.message);
-                    if (data.head) {
-                        dataPreviewDiv.innerHTML = `
-                            <h3>Preview dos Dados</h3>
-                            <table id="data-table" class="display">
-                                ${data.head}
-                            </table>
-                        `;
-                        dataPreviewDiv.style.display = 'block';
-                        dataPreviewDiv.style.maxWidth = '100%';
-                        dataPreviewDiv.style.maxHeight = '300px';
-                        dataPreviewDiv.style.overflowY = 'auto';
-                    }
-                    defineRegionsButton.style.display = 'inline-block';
-                }
-            });
-            defineRegionsButton.addEventListener('click', async () => {
-                const data = await sendRequest('/clients_profiles/define-regions/', 'POST');
-                if (data) {
-                    alert(data.message);
-                    //trainModelButton.style.display = 'inline-block';
-                }
-            });
             trainModelButton.addEventListener('click', async () => {
                 // Captura os clusters selecionados
                 const selectedClusters = Array.from(document.querySelectorAll('input[name="cluster"]:checked'))
@@ -247,77 +217,44 @@
                 const data = await sendRequest('/clients_profiles/train-model/', 'POST', {
                     clusters: selectedClusters
                 }, {
-                    headers: {
-                        'Content-Type': 'application/json'  // Certificando-se de que o tipo é JSON
-                    }
+                    headers: {'Content-Type': 'application/json'}  // Certificando-se de que o tipo é JSON
                 });
-
-
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
-
+                if (data.error) {alert(data.error);return;}
                 // Verifica se houve erro no envio
-                if (sendResponse.error) {
-                    alert(sendResponse.error);
-                    return;
-                }
-                // Aguarda a resposta do back-end com o modelo treinado
-                //const trainedModelData = await sendRequest('/clients_profiles/train-model/', 'GET');
-
-                // Verifica se houve erro ao receber os dados do modelo treinado
-                //if (trainedModelData.error) {
-                //    alert(trainedModelData.error);
-                //    return;
-                //}
-                //alert(trainedModelData.message);  // Mostra a mensagem que o back-end retorna
-                //console.log('Modelo Treinado:', trainedModelData); // Para depuração
-                // Renderiza o gráfico com os dados
-                //renderChart(data);
+                if (sendResponse.error) {alert(sendResponse.error);return;}
                 // Aguarda a resposta do back-end com o modelo treinado
                 const trainedModelData = await sendRequest('/clients_profiles/train-model/', 'GET');
-
                 // Verifica se houve erro ao receber os dados do modelo treinado
-                if (trainedModelData.error) {
-                    alert(trainedModelData.error);
-                    return;
-                }
-
+                if (trainedModelData.error) {alert(trainedModelData.error);return;}
                 alert(trainedModelData.message);  // Mostra a mensagem que o back-end retorna
                 console.log('Modelo Treinado:', trainedModelData); // Para depuração
-
                 // Renderiza os gráficos com os dados
                 renderCharts(trainedModelData.models);
-
             });
-            // Chamada única
             //----------------------------------------------
-            document.getElementById('define-regions').addEventListener('click', async () => {
-                const data = await sendRequest('/clients_profiles/define-regions/', 'POST');
-                if (data && data.coordinates) {
+            clusterButton.addEventListener('click', async () => {
+                const data = await sendRequest('/clients_profiles/create-cluster/', 'POST', {
+                    start_date: startDateInput.value,
+                    end_date: endDateInput.value,
+                    forecast_period: forecastPeriodInput.value //Envia o período de previsão
+                });
+                data2 = await sendRequest('/clients_profiles/define-regions/', 'POST',{});
+                if (data2 && data2.coordinates) {
                     alert('Regiões definidas com sucesso!');
                     trainModelButton.style.display = 'inline-block';
-
                     // Inicializa o mapa
                     const mapContainer = document.getElementById('map');
                     mapContainer.innerHTML = ''; // Limpa o mapa anterior, se houver
-
                     const map = L.map('map').setView([-15.7942, -47.8822], 5); // Centraliza o mapa no Brasil (pode ajustar)
-                    
                     // Adiciona o tile do OpenStreetMap
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '© OpenStreetMap contributors'
-                    }).addTo(map);
-
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap contributors'}).addTo(map);
                     // Definir cores para clusters diferentes
                     const colors = ['red', 'blue', 'green', 'orange', 'purple', 'cyan', 'magenta'];
                     // Encontra os clusters únicos
-                    const uniqueClusters = [...new Set(data.coordinates.map(coord => coord.cluster))];
+                    const uniqueClusters = [...new Set(data2.coordinates.map(coord => coord.cluster))];
                     // Adiciona marcadores para cada coordenada
-                    data.coordinates.forEach(coord => {
+                    data2.coordinates.forEach(coord => {
                         const color = colors[coord.cluster % colors.length]; // Alterna as cores para clusters
-
                         const marker = L.circleMarker([coord.latitude, coord.longitude], {
                             radius: 8,
                             fillColor: color,
@@ -326,9 +263,7 @@
                             opacity: 1,
                             fillOpacity: 0.7
                         }).addTo(map);
-
-                        marker.bindTooltip(
-                            `Cluster: ${coord.cluster}<br>Lat: ${coord.latitude.toFixed(4)}<br>Lon: ${coord.longitude.toFixed(4)}`, 
+                        marker.bindTooltip(`Cluster: ${coord.cluster}<br>Lat: ${coord.latitude.toFixed(4)}<br>Lon: ${coord.longitude.toFixed(4)}`, 
                             { 
                                 permanent: false,   // O tooltip aparece somente no hover
                                 direction: 'top',   // A posição do texto (pode ser 'top', 'right', 'bottom', 'left')
@@ -341,16 +276,12 @@
                         clusterForm.innerHTML = ''; // Limpar antes de popular
                         const clusterSelectionDiv = document.getElementById('cluster-selection');
                         clusterSelectionDiv.style.display = 'block'; // Exibir a seleção de clusters
-
                         uniqueClusters.forEach(cluster => {
                             const label = document.createElement('label');
                             label.style.display = 'block';
-                            label.innerHTML = `
-                                <input type="checkbox" name="cluster" value="${cluster}"> Cluster ${cluster}
-                            `;
+                            label.innerHTML = `<input type="checkbox" name="cluster" value="${cluster}"> Cluster ${cluster}`;
                             clusterForm.appendChild(label);
                         });
-
                         // Função para marcar o checkbox do cluster
                         function markClusterCheckbox(clusterId) {
                             const checkbox = document.querySelector(`input[name="cluster"][value="${clusterId}"]`);
@@ -359,22 +290,18 @@
                             }
                         }
                         // Evento de clique no marcador
-                        marker.on('click', () => {
-                            markClusterCheckbox(coord.cluster);
-                        });
+                        marker.on('click', () => {markClusterCheckbox(coord.cluster);});
                         //marker.bindPopup(`Cluster: ${coord.cluster}<br>Lat: ${coord.latitude}<br>Lon: ${coord.longitude}`);
                         document.getElementById('train-model').style.display = 'inline-block';
                     });
 
                     // Ajusta o mapa para mostrar todos os pontos
-                    const bounds = data.coordinates.map(coord => [coord.latitude, coord.longitude]);
+                    const bounds = data2.coordinates.map(coord => [coord.latitude, coord.longitude]);
                     map.fitBounds(bounds);
                 } else {
-                    alert('Erro ao definir regiões.');
+                alert('Erro ao definir regiões.');
                 }
             });
-
-                        // Evento de click no botão de treino do modelo
             //----------------------------------------------
             // Eventos
             startDateInput.addEventListener('change', toggleClusterButton);
