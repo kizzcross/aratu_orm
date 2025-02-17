@@ -19,12 +19,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Air Quality Dashboard</title>
     <script>
-        function importData() {
-            fetch('/sensor/import/')
-                .then(response => response.json())
-                .then(data => alert(data.message))
-                .catch(error => alert('Erro na importação: ' + error));
+        
+       // Função atualizada para buscar datas e configurar inputs
+       document.addEventListener('DOMContentLoaded', () => {
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+
+            async function fetchAndSetDates() {
+                try {
+                    const response = await fetch('/date-limits/');
+                    const data = await response.json();
+
+                    if (data.start_date && data.end_date) {
+                        // Aplicar limites nos inputs
+                        startDateInput.min = data.start_date;
+                        startDateInput.max = data.end_date;
+                        endDateInput.min = data.start_date;
+                        endDateInput.max = data.end_date;
+
+                        // Definir valores padrão
+                        startDateInput.value = data.start_date;
+                        endDateInput.value = data.end_date;
+
+                        // Atualizar exibição textual
+                        document.getElementById('min-date-display').textContent = data.start_date;
+                        document.getElementById('max-date-display').textContent = data.end_date;
+                    }
+                } catch (error) {
+                    console.error('Erro ao configurar datas:', error);
+                }
+            }
+
+            // Executar ao carregar a página
+            fetchAndSetDates();
+        });
+
+    // Função atualizada para gerar heatmap
+    function generateHeatmap() {
+        const pmType = document.getElementById('pmType').value;
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+
+        if (!startDate || !endDate) {
+            alert('Selecione ambas as datas!');
+            return;
         }
+
+        if (new Date(startDate) > new Date(endDate)) {
+            alert('Data inicial não pode ser maior que final!');
+            return;
+        }
+
+        const url = `/clients_profiles/generate-heatmap/?pm_type=${pmType}&start_date=${startDate}&end_date=${endDate}`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    document.getElementById('map-container').innerHTML = data.map_html;
+                }
+            })
+            .catch(error => alert('Erro: ' + error));
+    } 
+
+        function importData() {
+        fetch('/sensor/import/')
+            .then(response => response.json())
+            .then(data => alert(data.message))
+            .catch(error => alert('Erro na importação: ' + error));
+        }
+        /*
         function generateHeatmap() {
             const pmType = document.getElementById('pmType').value;
             fetch(`/clients_profiles/generate-heatmap/?pm_type=${pmType}`)
@@ -40,6 +106,7 @@
                 })
                 .catch(error => alert('Erro ao gerar o heatmap: ' + error));
         }
+        */
     </script>
 </head>
 <body>
@@ -59,6 +126,15 @@
             <option value="pm4m">PM4.0 (Massa)</option>
             <option value="pm10m">PM10 (Massa)</option>
         </select>
+    
+        <div class="form-group">
+            <label for="start-date">Data de Início:</label>
+            <input type="date" id="start-date" name="start-date" required>
+            <label for="end-date">Data de Fim:</label>
+            <input type="date" id="end-date" name="end-date" required>
+        </div>
+        <p>Intervalo de Datas: <span id="min-date-display"></span> até <span id="max-date-display"></span></p>
+        
         <button onclick="generateHeatmap()">Gerar Heatmap</button>
     </div>
     
