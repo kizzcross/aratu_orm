@@ -37,6 +37,7 @@ import logging
 import json
 import plotly.io as pio
 from plotly.io import to_html
+from django.utils.dateparse import parse_date
 
 db_heatmap = pd.DataFrame()
 trained_models_list = []
@@ -63,15 +64,22 @@ def data(request):
 # Endpoint para obter limites de datas, cluisterizar e criar modelo
 def get_date_limits(request):
     try:
+        # Obter datas brutas do banco
         date_limits = AirQualityData.objects.aggregate(
             min_date=Min('measure_time'),
             max_date=Max('measure_time')
         )
 
-        min_date = date_limits.get('min_date')
-        max_date = date_limits.get('max_date')
+        # Converter para date objects
+        min_date = date_limits['min_date'].date() if date_limits['min_date'] else None
+        max_date = date_limits['max_date'].date() if date_limits['max_date'] else None
 
-        return JsonResponse({'start_date': str(min_date), 'end_date': str(max_date)})
+        # Formatar para string ISO (YYYY-MM-DD)
+        return JsonResponse({
+            'start_date': min_date.isoformat() if min_date else '',
+            'end_date': max_date.isoformat() if max_date else ''
+        })
+
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -340,18 +348,30 @@ def train_model(request):
 @permission_required('clients_profiles.view_airqualitydata', raise_exception=True)
 def generate_heatmap(request):
     try:
-        pm_type = request.GET.get('pm_type', 'pm25m')  # Padrão: 'pm25m'
-
+        pm_type = request.GET.get('pm_type', 'pm25m')
+        start_date_str = request.GET.get('start_date')
+        end_date_str = request.GET.get('end_date')
+        #pm_type = request.GET.get('pm_type', 'pm25m')  # Padrão: 'pm25m'
+        if not start_date_str or not end_date_str:
+            return JsonResponse({'error': 'Datas são obrigatórias'}, status=400)
         # Verificar se o tipo de PM é válido
         if pm_type not in VALID_PM_TYPES:
             return JsonResponse({'error': f'Invalid PM type. Valid types are: {", ".join(VALID_PM_TYPES)}'})
-
+        try:
+            start_date = parse_date(start_date_str)
+            end_date = parse_date(end_date_str)
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Formato de data inválido'}, status=400)
         # Buscar os dados do banco de dados
-        data = AirQualityData.objects.values('lat', 'lon', pm_type)
-
+        #data = AirQualityData.objects.values('lat', 'lon', pm_type)
+        data = AirQualityData.objects.filter(
+                measure_time__date__gte=start_date,
+                measure_time__date__lte=end_date
+                ).values('lat', 'lon', pm_type)
+        
         # Converter os dados para um DataFrame
         df = pd.DataFrame.from_records(data)
-
+        
         # Remover valores NaN em PM, latitude e longitude
         df = df.dropna(subset=[pm_type, 'lat', 'lon'])
 
