@@ -5,9 +5,12 @@ django-jsonfield==1.4.1
 djangorestframework==3.15.1
 six==1.16.0
 sqlparse==0.5.0
-
-pandas==1.5.3          # Se estiver usando pandas
+pandas==2.2.3       # Se estiver usando pandas
 psutil==5.9.1          # Se estiver usando psutil
 celery==5.2.7          # Se estiver usando Celery
 openpyxl==3.1.2        # Se estiver usando openpyxl
 folium==0.14.0         # Se estiver usando folium
+scikit-learn==1.6.1
+networkx==3.4.2
+plotly==6.0.0
+numba==0.61.0
