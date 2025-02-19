@@ -27,6 +27,10 @@ DEBUG = True
 ALLOWED_HOSTS = ['ifmg.aratu.net', '131.255.252.77', 'localhost', '127.0.0.1']
 
 
+
+LOGIN_REDIRECT_URL = '/'  # Redireciona para a página inicial após o login
+LOGOUT_REDIRECT_URL = '/'  # Redireciona para a página inicial após o logout
+
 # Application definition
 
 from .config import DATABASES
@@ -90,10 +94,12 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'aratu.urls'
 
+import os
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
