@@ -5,6 +5,7 @@ import pandas as pd
 import folium
 from folium.plugins import HeatMap
 from sensor.models import AirQualityData  # Certifique-se de que o modelo está correto
+#from clients_profiles.models import AirQualityMeter # Certifique-se de que o modelo está correto
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
 
@@ -61,6 +62,7 @@ def relatorio(request):
 def data(request):
     return render(request, 'clients_profiles/data.html')
 
+@permission_required('clients_profiles.view_airqualitydata', raise_exception=False)
 # Endpoint para obter limites de datas, cluisterizar e criar modelo
 def get_date_limits(request):
     try:
@@ -83,6 +85,8 @@ def get_date_limits(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+#Funcao que executa com "Criar Cluster Geografico" no template "previsao.html"
+@permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 def create_cluster(request):
     global db_heatmap
     if request.method == 'POST':
@@ -192,7 +196,8 @@ def get_plot(request):
 
     return JsonResponse({'error': 'Nenhum dado disponível para plotar.'}, status=400)
 """
-
+#Executa logo após "create_cluster" no template "previsao.html" e habilita "Fazer Previsão"
+@permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 # Endpoint para definir regiões
 def define_regions(request):
     global db_heatmap
@@ -228,6 +233,7 @@ def define_regions(request):
         #return JsonResponse({'message': 'Regiões definidas com sucesso!'})
     return JsonResponse({'error': 'Método não permitido'}, status=405)
 
+@permission_required('clients_profiles.add_airqualitydata', raise_exception=False)
 def relatorio():
     ################################################################################################################################################################
     #para decidir:
@@ -244,6 +250,8 @@ def relatorio():
     #recebe clusters
     return 0
 
+#Executa logo após "define_regions" no template "previsao.html"
+@permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 # Endpoint para treinar modelo
 def train_model(request):
     global db_heatmap, trained_models_list
@@ -345,7 +353,8 @@ def train_model(request):
         #return JsonResponse({'message': 'Modelos treinados com sucesso!', 'models': trained_models_list})
     return JsonResponse({'error': 'Método não permitido'}, status=405)
 
-@permission_required('clients_profiles.view_airqualitydata', raise_exception=True)
+#gera heatmap no template "mapadecalor.html"
+@permission_required('clients_profiles.view_airqualitydata', raise_exception=False)
 def generate_heatmap(request):
     try:
         pm_type = request.GET.get('pm_type', 'pm25m')

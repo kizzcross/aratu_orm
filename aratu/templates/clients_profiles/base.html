@@ -27,10 +27,14 @@
             <button onclick="location.href='{% url 'relatorio' %}'" class="nav-button">Relatório</button>
             <button onclick="location.href='{% url 'data' %}'" class="nav-button">Dados</button>
             {% if user.is_authenticated %}
-                <button onclick="location.href='{% url 'logout' %}'" class="nav-button">Logout</button>
+                <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="nav-button">Logout</button>
+                </form>
             {% else %}
                 <button onclick="location.href='{% url 'login' %}'" class="nav-button">Login</button>
             {% endif %}
+
         </nav>
     </header>
 
