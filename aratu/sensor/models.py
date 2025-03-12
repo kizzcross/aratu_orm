@@ -75,6 +75,7 @@ class PredictedData(models.Model):
     cluster = models.IntegerField()
     data = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
+    end_date = models.DateTimeField()
     how_many_days = models.IntegerField()
 
 

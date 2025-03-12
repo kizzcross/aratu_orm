@@ -24,7 +24,7 @@
             <button onclick="location.href='{% url 'home' %}'" class="nav-button">Home</button>
             <button onclick="location.href='{% url 'previsao' %}'" class="nav-button">Previsão</button>
             <button onclick="location.href='{% url 'mapadecalor' %}'" class="nav-button">Mapa de Calor</button>
-            <button onclick="location.href='{% url 'relatorio' %}'" class="nav-button">Relatório</button>
+        <!--button onclick="location.href='{% url 'relatorio' %}'" class="nav-button">Relatório</button>-->
             <button onclick="location.href='{% url 'data' %}'" class="nav-button">Dados</button>
             {% if user.is_authenticated %}
                 <form id="logout-form" action="{% url 'logout' %}" method="post" style="display: inline;">

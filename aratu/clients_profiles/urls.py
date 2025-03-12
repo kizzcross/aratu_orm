@@ -24,7 +24,7 @@ urlpatterns = [
     path('forecast/', views.previsao, name='previsao'),
     path('heatmap/', views.mapadecalor, name='mapadecalor'),
     path('generate-heatmap/', generate_heatmap, name='generate_heatmap'),
-    path('report/', views.relatorio, name='relatorio'),
+    #path('report/', views.relatorio, name='relatorio'),
     path('data/', views.data, name='data'),
 
     path('date-limits/', get_date_limits, name='get_date_limits'),
