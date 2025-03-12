@@ -1378,6 +1378,108 @@ def graph(real, fore):
   plt.title('Real x Predito')          # Titulo do grafico
   plt.legend(loc = 4)                   # Legenda do grafico
 
+def prever(df, end_date, predict_days, clusters):
+
+    from datetime import datetime, timedelta
+
+    # Converta a string para um objeto datetime
+    end_date_obj = datetime.strptime(end_date, '%m-%d-%Y')
+
+    # Calculando a data final da previsão
+    forecast_date = end_date_obj + timedelta(days=predict_days)
+
+    # Formatando a data de previsão para string
+    forecast_date_str = forecast_date.strftime('%m-%d-%Y')
+
+    forecast_date = datetime.strptime(forecast_date_str, "%m-%d-%Y")
+
+    # Cria a lista de datas
+    dates_p = []
+
+    # Adiciona as datas na lista
+    current_date = end_date_obj
+    while current_date <= forecast_date:
+        dates_p.append(current_date.strftime("%Y-%m-%d"))
+        current_date += timedelta(days=1)
+
+    print("Data final da previsão:", forecast_date_str)
+    print("Quantidade de dias previstos:", predict_days ,"\n")
+
+
+    for cp in clusters:
+
+        df_cluster = []
+
+        for j in range(0,len(df)):
+            if cp == df['cluster'].iloc[j]:
+                df_cluster.append(df.iloc[j])
+
+        df_cluster = pd.DataFrame(df_cluster)
+
+        X_cluster_totalpm = df_cluster['total_pm'].astype(np.float64).values
+        X_cluster_temp = df_cluster['temp'].astype(np.float64).values
+
+        n = int(len(X_cluster_totalpm))
+        y_pm = df['total_pm'].astype(np.float64).values
+        y_temp = df['temp'].astype(np.float64).values
+
+        X_cluster_train = np.column_stack((X_cluster_totalpm[:n], X_cluster_temp[:n])).T
+
+
+        y_pm_train = y_pm[:n]
+        y_temp_train = y_temp[:n]
+
+        model_pm, _ = model_singh(X_cluster_train,y_pm_train) # Criação do modelo para pm
+        model_temp, _ = model_singh(X_cluster_temp,y_temp_train) # Criação do modelo para temp
+
+        X_temp = np.zeros(predict_days+1)
+        X_test_temp = np.array(X_cluster_temp[n-1])
+        X_temp[0] = X_test_temp
+
+        X_pm = np.array([X_cluster_totalpm[n-1]])
+        X_pm[0]
+
+        X_test_pm = np.column_stack((X_pm[0], X_temp[0])).T
+
+        yp = np.zeros([2,predict_days])
+
+        for i in range(1, predict_days+1):
+
+            predict_temp = predict(X_temp, model_temp) # Previsões do modelo temp
+            predict_pm = predict(X_test_pm, model_pm) # Previsões do modelo pm
+
+            X_temp[i] = predict_temp[i-1]
+            X_test_pm[0] = predict_pm[0]
+            X_test_pm[1] = predict_temp[i]
+
+            yp[0][i-1] = X_test_pm[0]
+            yp[1][i-1] = X_temp[i]
+
+
+        print(f"Previsão do cluster {cp}")
+        print(f'Quatidade de dados utilizados no treino: {n}')
+
+        y_c = df_cluster['cluster'].tolist()
+        xk_c = df_cluster[['lat', 'lon']].astype(np.float64).values
+        ll_c = df_cluster[['lat', 'lon', 'total_pm']].astype(np.float64).values
+
+        clusters_plot(xk_c, y_c, ll_c, title = cp)
+
+        fig = plt.figure(figsize=(12,6))      # Tamanho da figura
+        ax1 = fig.add_subplot()               # Adiciona o grafico
+
+        ax1.plot(dates_p[1:], yp[0], label = 'Valores Previstos', linestyle = '-', color = 'orange')         # Plotagem do sinal
+
+        ax1.set_xlabel('Dias')                   # Nome do eixo x
+        ax1.set_ylabel('Particulado')                   # Nome do eixo y
+        plt.grid(axis='y', linestyle='--', alpha=0.7)
+        plt.title(f'Previsão do Nível de Particulados no Cluster {cp}')          # Titulo do grafico
+        plt.legend(loc = 2)                   # Legenda do grafico
+
+        # Exibindo o gráfico
+        plt.xticks(rotation=90)  # Rotaciona os rótulos das datas
+        plt.tight_layout()  # Ajusta o layout para não cortar nada
+        plt.show()
 
 
 
