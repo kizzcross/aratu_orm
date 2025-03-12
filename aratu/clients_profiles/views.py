@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.models import Min, Max
 import pandas as pd
 import folium
@@ -241,22 +241,22 @@ def define_regions(request):
         #return JsonResponse({'message': 'Regiões definidas com sucesso!'})
     return JsonResponse({'error': 'Método não permitido'}, status=405)
 
-@permission_required('clients_profiles.add_airqualitydata', raise_exception=False)
-def relatorio():
-    ################################################################################################################################################################
-    #para decidir:
-    '''
-    se (info de todos cluster):
-        fazer predict de todos clustuers #dentro da propria func relatorio
-    senao
-        recebe resultado do train_model 
-    '''
-    ################################################################################################################################################################
-    #recebe dias previstos
-    #recebe intervalo de dados do treino
-    #recebe predição
-    #recebe clusters
-    return 0
+# @permission_required('clients_profiles.add_airqualitydata', raise_exception=False)
+# def relatorio():
+#     ################################################################################################################################################################
+#     #para decidir:
+#     '''
+#     se (info de todos cluster):
+#         fazer predict de todos clustuers #dentro da propria func relatorio
+#     senao
+#         recebe resultado do train_model
+#     '''
+#     ################################################################################################################################################################
+#     #recebe dias previstos
+#     #recebe intervalo de dados do treino
+#     #recebe predição
+#     #recebe clusters
+#     return 0
 
 #Executa logo após "define_regions" no template "previsao.html"
 @permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
@@ -266,12 +266,11 @@ def train_model(request):
     if request.method == 'POST':
         # Verifique se o db_heatmap existe e está carregado
         print("db_heatmap:", db_heatmap.head() if not db_heatmap.empty else "db_heatmap está vazio")
-        end_date = request.POST.get('end_date')
-        forecast_period = request.POST.get('forecast_period')
         #Receber os clusters selecionados do front-end
         print(request.body)
         data = json.loads(request.body)
         selected_clusters = data.get('clusters', [])
+        forecast_period = int(data.get('forecast_period'))
         #selected_clusters = request.POST.getlist('clusters')  
         #selected_clusters = list(map(int, selected_clusters))  # Converter para inteiros
         selected_clusters = [int(cluster) for cluster in selected_clusters]  # Filtrar apenas os dígitos
@@ -367,7 +366,25 @@ def train_model(request):
         if models_results:
             print(f"Modelos treinados com sucesso! {models_results}")
             # guardar as infos
-            return JsonResponse({'message': 'Modelos treinados com sucesso!', 'models': models_results})
+            # Aqui vamos retornar um csv com os dados
+            # Aqui vamos retornar um csv com os dados
+            # clusters vao ser as colunas e cada linha vai ser uma data comecando da end_date ate end_date + forecast_period
+            # Cada cluster vai ter 2 colunas, uma para pm e outra para temp
+            df = pd.DataFrame()
+            last_date = db_heatmap['date'].max()
+            for model in models_results:
+                for i in range(forecast_period):
+                    new_row = {
+                        'cluster': model['cluster'],
+                        'pm': model['forecast'][i],
+                        'temp': model['forecast'][i],
+                        'date': last_date + pd.DateOffset(days=i + 1)  # Ensure correct date progression
+                    }
+                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="trained_models.csv"'
+            df.to_csv(path_or_buf=response, index=False)
+            return response
         else:
             return JsonResponse({'error': 'Nenhum modelo foi treinado com sucesso.'}, status=400)
         #return JsonResponse({'message': 'Modelos treinados com sucesso!', 'models': trained_models_list})

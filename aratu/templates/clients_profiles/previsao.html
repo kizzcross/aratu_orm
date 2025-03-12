@@ -56,20 +56,25 @@
             border: 1px solid #ccc;
             display: none;
         }
+
         #myChart {
             max-height: 300px;
             max-width: fit-content;
         }
+
         .chart {
             margin-bottom: 40px;
         }
+
         .line {
             fill: none;
             stroke-width: 2;
         }
+
         .line-real {
             stroke: steelblue;
         }
+
         .line-forecast {
             stroke: orange;
         }
@@ -78,241 +83,293 @@
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="text/javascript" charset="utf8" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script type="text/javascript" charset="utf8"
+            src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <!--<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>-->
 </head>
 <body>
-    <h1>Página de Previsão</h1>
+<h1>Página de Previsão</h1>
 
-    <form id="date-form" method="POST">
-        <div class="form-group">
-            <label for="start-date">Data de Início:</label>
-            <input type="date" id="start-date" name="start-date" required>
-            <label for="end-date">Data de Fim:</label>
-            <input type="date" id="end-date" name="end-date" required>
-            <label for="forecast-period">Período de Previsão (dias):</label>
-            <input type="number" id="forecast-period" name="forecast-period" min="1" value="7" required>
-        </div>
-        <p>Intervalo de Datas: <span id="min-date-display"></span> até <span id="max-date-display"></span></p>
-        <!--
-        ##############################################################################################################################################################
-        Unir execuções dos botões 'Criar Cluster' & 'Definir Regioes'
-        ##############################################################################################################################################################
-        -->
-        <button id="generate-cluster" type="button" disabled>Criar Cluster Geográfico</button>
-        <!--<button id="define-regions" type="button" style="display: none;">Definir Regiões</button>-->
-        <button id="train-model" type="button" style="display: none;"> Fazer Previsão</button>
-        <!--
-        ##############################################################################################################################################################
-        Add mensangem para quando não tiver previsão e usuario clicar em relatório
-        ##############################################################################################################################################################
-        -->
-    </form>
-
-    <div id="data-preview"></div>
-    <div id="map" style="height: 400px; width: 100%; margin-top: 20px;"></div>
-    <div id="cluster-selection" style="display: none; margin: 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
-        <h3>Selecione os Clusters:</h3>
-        <form id="cluster-form"></form>
+<form id="date-form" method="POST">
+    <div class="form-group">
+        <label for="start-date">Data de Início:</label>
+        <input type="date" id="start-date" name="start-date" required>
+        <label for="end-date">Data de Fim:</label>
+        <input type="date" id="end-date" name="end-date" required>
+        <label for="forecast-period">Período de Previsão (dias):</label>
+        <input type="number" id="forecast-period" name="forecast-period" min="1" value="7" required>
     </div>
-    <div id="plot-container" style="margin-top: 20px;"></div>
-    <!--<div id="plot-container" style="width: 95%; height: 600px; margin: auto; overflow: auto;">
-        <canvas id="myChart" width="50%" height="50%"></canvas>
-    </div>-->
-    
+    <p>Intervalo de Datas: <span id="min-date-display"></span> até <span id="max-date-display"></span></p>
+    <!--
+    ##############################################################################################################################################################
+    Unir execuções dos botões 'Criar Cluster' & 'Definir Regioes'
+    ##############################################################################################################################################################
+    -->
+    <button id="generate-cluster" type="button" disabled>Criar Cluster Geográfico</button>
+    <!--<button id="define-regions" type="button" style="display: none;">Definir Regiões</button>-->
+    <button id="train-model" type="button" style="display: none;"> Fazer Previsão</button>
+    <!--
+    ##############################################################################################################################################################
+    Add mensangem para quando não tiver previsão e usuario clicar em relatório
+    ##############################################################################################################################################################
+    -->
+</form>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const startDateInput = document.getElementById('start-date');
-            const endDateInput = document.getElementById('end-date');
-            const forecastPeriodInput = document.getElementById('forecast-period');
-            const clusterButton = document.getElementById('generate-cluster');
-            //const defineRegionsButton = document.getElementById('define-regions');
-            const trainModelButton = document.getElementById('train-model');
-            const dataPreviewDiv = document.getElementById('data-preview');
+<div id="data-preview"></div>
+<div id="map" style="height: 400px; width: 100%; margin-top: 20px;"></div>
+<div id="cluster-selection"
+     style="display: none; margin: 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+    <h3>Selecione os Clusters:</h3>
+    <form id="cluster-form"></form>
+</div>
+<div id="plot-container" style="margin-top: 20px;"></div>
+<!--<div id="plot-container" style="width: 95%; height: 600px; margin: auto; overflow: auto;">
+    <canvas id="myChart" width="50%" height="50%"></canvas>
+</div>-->
 
-            // Helper para CSRF 
-            function getCSRFToken() {
-                return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            }
-            // Atualiza o estado do botão de cluster
-            function toggleClusterButton() {
-                const startDate = new Date(startDateInput.value);
-                const endDate = new Date(endDateInput.value);
-                const forecastPeriod = parseInt(forecastPeriodInput.value);
 
-                const isStartDateValid = !isNaN(startDate.getTime());
-                const isEndDateValid = !isNaN(endDate.getTime());
-                const isForecastPeriodValid = !isNaN(forecastPeriod) && forecastPeriod > 0;
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        const forecastPeriodInput = document.getElementById('forecast-period');
+        const clusterButton = document.getElementById('generate-cluster');
+        //const defineRegionsButton = document.getElementById('define-regions');
+        const trainModelButton = document.getElementById('train-model');
+        const dataPreviewDiv = document.getElementById('data-preview');
 
-                clusterButton.disabled = !(isStartDateValid && isEndDateValid && isForecastPeriodValid);
-            }
-            // Busca os limites de data da API
-            async function fetchDateLimits() {
-                try {
-                    const response = await fetch('/date-limits/');
-                    const data = await response.json();
+        // Helper para CSRF
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
 
-                    if (data.start_date && data.end_date) {
-                        let startDate = new Date(data.start_date);
-                        let endDate = new Date(data.end_date);
+        // Atualiza o estado do botão de cluster
+        function toggleClusterButton() {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            const forecastPeriod = parseInt(forecastPeriodInput.value);
 
-                        if (isNaN(startDate) || isNaN(endDate)) return;
+            const isStartDateValid = !isNaN(startDate.getTime());
+            const isEndDateValid = !isNaN(endDate.getTime());
+            const isForecastPeriodValid = !isNaN(forecastPeriod) && forecastPeriod > 0;
 
-                        const formatDate = (date) => {
-                            const year = date.getFullYear();
-                            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                            const day = date.getDate().toString().padStart(2, '0');
-                            return `${year}-${month}-${day}`;
-                        };
+            clusterButton.disabled = !(isStartDateValid && isEndDateValid && isForecastPeriodValid);
+        }
 
-                        startDate = formatDate(startDate);
-                        endDate = formatDate(endDate);
+        // Busca os limites de data da API
+        async function fetchDateLimits() {
+            try {
+                const response = await fetch('/date-limits/');
+                const data = await response.json();
 
-                        startDateInput.min = startDate;
-                        startDateInput.max = endDate;
-                        endDateInput.min = startDate;
-                        endDateInput.max = endDate;
+                if (data.start_date && data.end_date) {
+                    let startDate = new Date(data.start_date);
+                    let endDate = new Date(data.end_date);
 
-                        document.getElementById('min-date-display').textContent = startDate;
-                        document.getElementById('max-date-display').textContent = endDate;
-                    }
-                } catch (error) {
-                    console.error('Erro ao buscar limites de data:', error);
+                    if (isNaN(startDate) || isNaN(endDate)) return;
+
+                    const formatDate = (date) => {
+                        const year = date.getFullYear();
+                        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                        const day = date.getDate().toString().padStart(2, '0');
+                        return `${year}-${month}-${day}`;
+                    };
+
+                    startDate = formatDate(startDate);
+                    endDate = formatDate(endDate);
+
+                    startDateInput.min = startDate;
+                    startDateInput.max = endDate;
+                    endDateInput.min = startDate;
+                    endDateInput.max = endDate;
+
+                    document.getElementById('min-date-display').textContent = startDate;
+                    document.getElementById('max-date-display').textContent = endDate;
                 }
+            } catch (error) {
+                console.error('Erro ao buscar limites de data:', error);
             }
-            // Função para enviar requisições
-            async function sendRequest(url, method, payload = {}) {
-                try {
-                    const response = await fetch(url, {
-                        method: method,
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCSRFToken()
-                        },
-                        body: JSON.stringify(payload)
-                    });
-                    return await response.json();
-                } catch (error) {
-                    console.error('Erro ao enviar requisição:', error);
-                }
-            }
-            // Função para renderizar múltiplos gráficos
-            function renderCharts(data) {
-                console.log(data); // Verifique os dados aqui
-                const container = document.getElementById('plot-container');
-                //plotContainer.innerHTML = '';
+        }
 
+        // Função para enviar requisições
+        async function sendRequest(url, method, payload = {}) {
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCSRFToken()
+                    },
+                    body: JSON.stringify(payload)
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('Erro ao enviar requisição:', error);
             }
+        }
 
-            trainModelButton.addEventListener('click', async () => {
-                // Captura os clusters selecionados
-                const selectedClusters = Array.from(document.querySelectorAll('input[name="cluster"]:checked'))
-                    .map(checkbox => parseInt(checkbox.value));  // Converte para número
-                // Envia os clusters selecionados para o back-end
-                const data = await sendRequest('/clients_profiles/train-model/', 'POST', {
+        // Função para renderizar múltiplos gráficos
+        function renderCharts(data) {
+            console.log(data); // Verifique os dados aqui
+            const container = document.getElementById('plot-container');
+            //plotContainer.innerHTML = '';
+
+        }
+
+        trainModelButton.addEventListener('click', async () => {
+            // Captura os clusters selecionados
+            const selectedClusters = Array.from(document.querySelectorAll('input[name="cluster"]:checked'))
+                .map(checkbox => parseInt(checkbox.value));  // Converte para número
+            // Envia os clusters selecionados para o back-end
+            const data = await sendRequest('/clients_profiles/train-model/', 'POST', {
+                clusters: selectedClusters,
+                start_date: startDateInput.value,
+                end_date: endDateInput.value,
+                forecast_period: forecastPeriodInput.value
+            }, {
+                headers: {'Content-Type': 'application/json'}  // Certificando-se de que o tipo é JSON
+            });
+            const response = await fetch('/clients_profiles/train-model/', {
+                method: 'POST',
+                body: JSON.stringify({
                     clusters: selectedClusters,
                     start_date: startDateInput.value,
                     end_date: endDateInput.value,
                     forecast_period: forecastPeriodInput.value
-                }, {
-                    headers: {'Content-Type': 'application/json'}  // Certificando-se de que o tipo é JSON
-                });
-                if (data.error) {alert(data.error);return;}
-                // Verifica se houve erro no envio
-                if (sendResponse.error) {alert(sendResponse.error);return;}
-                // Aguarda a resposta do back-end com o modelo treinado
-                const trainedModelData = await sendRequest('/clients_profiles/train-model/', 'GET');
-                // Verifica se houve erro ao receber os dados do modelo treinado
-                if (trainedModelData.error) {alert(trainedModelData.error);return;}
-                alert(trainedModelData.message);  // Mostra a mensagem que o back-end retorna
-                console.log('Modelo Treinado:', trainedModelData); // Para depuração
-                // Renderiza os gráficos com os dados
-                renderCharts(trainedModelData.models);
+                }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
             });
-            //----------------------------------------------
-            clusterButton.addEventListener('click', async () => {
-                const data = await sendRequest('/clients_profiles/create-cluster/', 'POST', {
-                    start_date: startDateInput.value,
-                    end_date: endDateInput.value,
-                    forecast_period: forecastPeriodInput.value //Envia o período de previsão
-                });
-                data2 = await sendRequest('/clients_profiles/define-regions/', 'POST',{});
-                if (data2 && data2.coordinates) {
-                    alert('Regiões definidas com sucesso!');
-                    trainModelButton.style.display = 'inline-block';
-                    // Inicializa o mapa
-                    const mapContainer = document.getElementById('map');
-                    mapContainer.innerHTML = ''; // Limpa o mapa anterior, se houver
-                    const map = L.map('map').setView([-15.7942, -47.8822], 5); // Centraliza o mapa no Brasil (pode ajustar)
-                    // Adiciona o tile do OpenStreetMap
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap contributors'}).addTo(map);
-                    // Definir cores para clusters diferentes
-                    const colors = ['red', 'blue', 'green', 'orange', 'purple', 'cyan', 'magenta'];
-                    // Encontra os clusters únicos
-                    const uniqueClusters = [...new Set(data2.coordinates.map(coord => coord.cluster))];
-                    // Adiciona marcadores para cada coordenada
-                    data2.coordinates.forEach(coord => {
-                        const color = colors[coord.cluster % colors.length]; // Alterna as cores para clusters
-                        const marker = L.circleMarker([coord.latitude, coord.longitude], {
-                            radius: 8,
-                            fillColor: color,
-                            color: color,
-                            weight: 1,
-                            opacity: 1,
-                            fillOpacity: 0.7
-                        }).addTo(map);
-                        marker.bindTooltip(`Cluster: ${coord.cluster}<br>Lat: ${coord.latitude.toFixed(4)}<br>Lon: ${coord.longitude.toFixed(4)}`, 
-                            { 
-                                permanent: false,   // O tooltip aparece somente no hover
-                                direction: 'top',   // A posição do texto (pode ser 'top', 'right', 'bottom', 'left')
-                                offset: [0, -10],   // Distância entre o texto e o marcador
-                                opacity: 0.9        // Transparência do tooltip
-                            }
-                        );
-                        // Criar checkboxes para seleção de clusters
-                        const clusterForm = document.getElementById('cluster-form');
-                        clusterForm.innerHTML = ''; // Limpar antes de popular
-                        const clusterSelectionDiv = document.getElementById('cluster-selection');
-                        clusterSelectionDiv.style.display = 'block'; // Exibir a seleção de clusters
-                        uniqueClusters.forEach(cluster => {
-                            const label = document.createElement('label');
-                            label.style.display = 'block';
-                            label.innerHTML = `<input type="checkbox" name="cluster" value="${cluster}"> Cluster ${cluster}`;
-                            clusterForm.appendChild(label);
-                        });
-                        // Função para marcar o checkbox do cluster
-                        function markClusterCheckbox(clusterId) {
-                            const checkbox = document.querySelector(`input[name="cluster"][value="${clusterId}"]`);
-                            if (checkbox && !checkbox.checked) {
-                                checkbox.checked = true;
-                            }
+            if (!response.ok) {
+                throw new Error(`Erro ao treinar modelo: ${response.statusText}`);
+            }
+            // Convertendo a resposta para blob (arquivo)
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+
+            // Criando um link para download
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'trained_models.csv';
+            document.body.appendChild(a);
+            a.click();
+            if (!response.ok) {
+                throw new Error(`Erro ao treinar modelo: ${response.statusText}`);
+            }
+            // Removendo o elemento após o download
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            console.log({response})
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            // Verifica se houve erro no envio
+            if (sendResponse.error) {
+                alert(sendResponse.error);
+                return;
+            }
+            // Aguarda a resposta do back-end com o modelo treinado
+            const trainedModelData = await sendRequest('/clients_profiles/train-model/', 'GET');
+            // Verifica se houve erro ao receber os dados do modelo treinado
+            if (trainedModelData.error) {
+                alert(trainedModelData.error);
+                return;
+            }
+            alert(trainedModelData.message);  // Mostra a mensagem que o back-end retorna
+            console.log('Modelo Treinado:', trainedModelData); // Para depuração
+            // Renderiza os gráficos com os dados
+            renderCharts(trainedModelData.models);
+        });
+        //----------------------------------------------
+        clusterButton.addEventListener('click', async () => {
+            const data = await sendRequest('/clients_profiles/create-cluster/', 'POST', {
+                start_date: startDateInput.value,
+                end_date: endDateInput.value,
+                forecast_period: forecastPeriodInput.value //Envia o período de previsão
+            });
+            data2 = await sendRequest('/clients_profiles/define-regions/', 'POST', {});
+            if (data2 && data2.coordinates) {
+                alert('Regiões definidas com sucesso!');
+                trainModelButton.style.display = 'inline-block';
+                // Inicializa o mapa
+                const mapContainer = document.getElementById('map');
+                mapContainer.innerHTML = ''; // Limpa o mapa anterior, se houver
+                const map = L.map('map').setView([-15.7942, -47.8822], 5); // Centraliza o mapa no Brasil (pode ajustar)
+                // Adiciona o tile do OpenStreetMap
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap contributors'}).addTo(map);
+                // Definir cores para clusters diferentes
+                const colors = ['red', 'blue', 'green', 'orange', 'purple', 'cyan', 'magenta'];
+                // Encontra os clusters únicos
+                const uniqueClusters = [...new Set(data2.coordinates.map(coord => coord.cluster))];
+                // Adiciona marcadores para cada coordenada
+                data2.coordinates.forEach(coord => {
+                    const color = colors[coord.cluster % colors.length]; // Alterna as cores para clusters
+                    const marker = L.circleMarker([coord.latitude, coord.longitude], {
+                        radius: 8,
+                        fillColor: color,
+                        color: color,
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map);
+                    marker.bindTooltip(`Cluster: ${coord.cluster}<br>Lat: ${coord.latitude.toFixed(4)}<br>Lon: ${coord.longitude.toFixed(4)}`,
+                        {
+                            permanent: false,   // O tooltip aparece somente no hover
+                            direction: 'top',   // A posição do texto (pode ser 'top', 'right', 'bottom', 'left')
+                            offset: [0, -10],   // Distância entre o texto e o marcador
+                            opacity: 0.9        // Transparência do tooltip
                         }
-                        // Evento de clique no marcador
-                        marker.on('click', () => {markClusterCheckbox(coord.cluster);});
-                        //marker.bindPopup(`Cluster: ${coord.cluster}<br>Lat: ${coord.latitude}<br>Lon: ${coord.longitude}`);
-                        document.getElementById('train-model').style.display = 'inline-block';
+                    );
+                    // Criar checkboxes para seleção de clusters
+                    const clusterForm = document.getElementById('cluster-form');
+                    clusterForm.innerHTML = ''; // Limpar antes de popular
+                    const clusterSelectionDiv = document.getElementById('cluster-selection');
+                    clusterSelectionDiv.style.display = 'block'; // Exibir a seleção de clusters
+                    uniqueClusters.forEach(cluster => {
+                        const label = document.createElement('label');
+                        label.style.display = 'block';
+                        label.innerHTML = `<input type="checkbox" name="cluster" value="${cluster}"> Cluster ${cluster}`;
+                        clusterForm.appendChild(label);
                     });
 
-                    // Ajusta o mapa para mostrar todos os pontos
-                    const bounds = data2.coordinates.map(coord => [coord.latitude, coord.longitude]);
-                    map.fitBounds(bounds);
-                } else {
+                    // Função para marcar o checkbox do cluster
+                    function markClusterCheckbox(clusterId) {
+                        const checkbox = document.querySelector(`input[name="cluster"][value="${clusterId}"]`);
+                        if (checkbox && !checkbox.checked) {
+                            checkbox.checked = true;
+                        }
+                    }
+
+                    // Evento de clique no marcador
+                    marker.on('click', () => {
+                        markClusterCheckbox(coord.cluster);
+                    });
+                    //marker.bindPopup(`Cluster: ${coord.cluster}<br>Lat: ${coord.latitude}<br>Lon: ${coord.longitude}`);
+                    document.getElementById('train-model').style.display = 'inline-block';
+                });
+
+                // Ajusta o mapa para mostrar todos os pontos
+                const bounds = data2.coordinates.map(coord => [coord.latitude, coord.longitude]);
+                map.fitBounds(bounds);
+            } else {
                 alert('Erro ao definir regiões.');
-                }
-            });
-            //----------------------------------------------
-            // Eventos
-            startDateInput.addEventListener('change', toggleClusterButton);
-            endDateInput.addEventListener('change', toggleClusterButton);
-            forecastPeriodInput.addEventListener('input', toggleClusterButton);
-            fetchDateLimits();
+            }
         });
-    </script>
+        //----------------------------------------------
+        // Eventos
+        startDateInput.addEventListener('change', toggleClusterButton);
+        endDateInput.addEventListener('change', toggleClusterButton);
+        forecastPeriodInput.addEventListener('input', toggleClusterButton);
+        fetchDateLimits();
+    });
+</script>
 </body>
 </html>
 {% endblock %}
