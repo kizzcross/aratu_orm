@@ -266,7 +266,8 @@ def train_model(request):
     if request.method == 'POST':
         # Verifique se o db_heatmap existe e está carregado
         print("db_heatmap:", db_heatmap.head() if not db_heatmap.empty else "db_heatmap está vazio")
-
+        end_date = request.POST.get('end_date')
+        forecast_period = request.POST.get('forecast_period')
         #Receber os clusters selecionados do front-end
         print(request.body)
         data = json.loads(request.body)
@@ -321,8 +322,9 @@ def train_model(request):
 
             #Treinar o modelo
             try:
-                model, tree = model_singh(X_train, y_train)
-                predictions = predict(X_test, model)
+                # model, tree = model_singh(X_train, y_train)
+                # predictions = predict(X_test, model)
+                predictions = prever(db_heatmap, end_date, forecast_period, cluster)
             except Exception as e:
                 print(f"Erro ao treinar o modelo para o cluster {cluster}:", e)
                 continue

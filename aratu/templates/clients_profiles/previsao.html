@@ -215,7 +215,10 @@
                     .map(checkbox => parseInt(checkbox.value));  // Converte para número
                 // Envia os clusters selecionados para o back-end
                 const data = await sendRequest('/clients_profiles/train-model/', 'POST', {
-                    clusters: selectedClusters
+                    clusters: selectedClusters,
+                    start_date: startDateInput.value,
+                    end_date: endDateInput.value,
+                    forecast_period: forecastPeriodInput.value
                 }, {
                     headers: {'Content-Type': 'application/json'}  // Certificando-se de que o tipo é JSON
                 });
