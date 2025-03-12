@@ -30,7 +30,8 @@ class Sensor(models.Model):
 
 
 class AirQualityData(models.Model):
-    air_quality_meter = models.ForeignKey(AirQualityMeter, on_delete=models.CASCADE, related_name='air_quality_data', null=True, blank=True)
+    air_quality_meter = models.ForeignKey(AirQualityMeter, on_delete=models.CASCADE, related_name='air_quality_data',
+                                          null=True, blank=True)
     device = models.CharField(max_length=100)
     measure_time = models.DateTimeField()
     temperature = models.FloatField()
@@ -65,6 +66,16 @@ class AirQualityData(models.Model):
         ordering = ['-measure_time']
         verbose_name = 'Air Quality Data'
         verbose_name_plural = 'Air Quality Data'
+
+
+class PredictedData(models.Model):
+    """
+    Modelo que vai quardar os dados da ultima predicao
+    """
+    cluster = models.IntegerField()
+    data = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    how_many_days = models.IntegerField()
 
 
 # all models must be auditables

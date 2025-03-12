@@ -6,7 +6,7 @@ import folium
 from folium.plugins import HeatMap
 from sensor.models import AirQualityData  # Certifique-se de que o modelo está correto
 #from clients_profiles.models import AirQualityMeter # Certifique-se de que o modelo está correto
-from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.decorators import permission_required, login_required
 from django.core.exceptions import PermissionDenied
 
 #------------------------------------------------------------------------
@@ -40,6 +40,7 @@ import plotly.io as pio
 from plotly.io import to_html
 from django.utils.dateparse import parse_date
 
+
 db_heatmap = pd.DataFrame()
 trained_models_list = []
 #-------------------------------------------------------------------------
@@ -47,22 +48,28 @@ trained_models_list = []
 # Lista de tipos de PM válidos
 VALID_PM_TYPES = ['pm1m', 'pm25m', 'pm4m', 'pm10m']
 
+@login_required(login_url='/login/')
 def home(request):
     return render(request, 'clients_profiles/home.html')
 
+@login_required(login_url='/login/')
 def previsao(request):
     return render(request, 'clients_profiles/previsao.html')
 
+@login_required(login_url='/login/')
 def mapadecalor(request):
     return render(request, 'clients_profiles/mapadecalor.html')
 
+@login_required(login_url='/login/')
 def relatorio(request):
     return render(request, 'clients_profiles/relatorio.html')
 
+@login_required(login_url='/login/')
 def data(request):
     return render(request, 'clients_profiles/data.html')
 
-@permission_required('clients_profiles.view_airqualitydata', raise_exception=False)
+@login_required(login_url='/login/')
+@permission_required('clients_profiles.view_airqualitydata', raise_exception=True)
 # Endpoint para obter limites de datas, cluisterizar e criar modelo
 def get_date_limits(request):
     try:
@@ -85,6 +92,7 @@ def get_date_limits(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+@login_required(login_url='/login/')
 #Funcao que executa com "Criar Cluster Geografico" no template "previsao.html"
 @permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 def create_cluster(request):
@@ -347,6 +355,7 @@ def train_model(request):
             # Retornar os resultados para o front-end
         if models_results:
             print(f"Modelos treinados com sucesso! {models_results}")
+            # guardar as infos
             return JsonResponse({'message': 'Modelos treinados com sucesso!', 'models': models_results})
         else:
             return JsonResponse({'error': 'Nenhum modelo foi treinado com sucesso.'}, status=400)

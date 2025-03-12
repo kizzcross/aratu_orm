@@ -27,6 +27,7 @@ DEBUG = True
 ALLOWED_HOSTS = ['*']
 
 
+LOGIN_URL = '/login/'  # Define a URL para a página de login
 LOGIN_REDIRECT_URL = '/'  # Redireciona para a página inicial após o login
 LOGOUT_REDIRECT_URL = '/'  # Redireciona para a página inicial após o logout
 
