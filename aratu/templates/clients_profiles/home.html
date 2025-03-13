@@ -3,5 +3,25 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<h1>Bem-vindo à Home!</h1>
+    <h1>Bem-vindo à Home!</h1>
+    <a href="{% url 'admin:index' %}">
+        <button class="admin-button">Área de Administração</button>
+    </a>
+    <style>
+        .admin-button {
+            margin-right: 10px;
+            padding: 10px 20px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .admin-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
 {% endblock %}
