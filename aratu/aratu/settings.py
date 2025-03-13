@@ -28,6 +28,7 @@ ALLOWED_HOSTS = ['ifmg.aratu.net', '131.255.252.77', 'localhost', '127.0.0.1']
 
 
 
+LOGIN_URL = '/login/'  # Define a URL para a página de login
 LOGIN_REDIRECT_URL = '/'  # Redireciona para a página inicial após o login
 LOGOUT_REDIRECT_URL = '/'  # Redireciona para a página inicial após o logout
 

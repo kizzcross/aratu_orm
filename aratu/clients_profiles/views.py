@@ -1,11 +1,12 @@
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.models import Min, Max
 import pandas as pd
 import folium
 from folium.plugins import HeatMap
 from sensor.models import AirQualityData  # Certifique-se de que o modelo está correto
-from django.contrib.auth.decorators import permission_required
+#from clients_profiles.models import AirQualityMeter # Certifique-se de que o modelo está correto
+from django.contrib.auth.decorators import permission_required, login_required
 from django.core.exceptions import PermissionDenied
 
 #------------------------------------------------------------------------
@@ -39,6 +40,7 @@ import plotly.io as pio
 from plotly.io import to_html
 from django.utils.dateparse import parse_date
 
+
 db_heatmap = pd.DataFrame()
 trained_models_list = []
 #-------------------------------------------------------------------------
@@ -46,21 +48,28 @@ trained_models_list = []
 # Lista de tipos de PM válidos
 VALID_PM_TYPES = ['pm1m', 'pm25m', 'pm4m', 'pm10m']
 
+@login_required(login_url='/login/')
 def home(request):
     return render(request, 'clients_profiles/home.html')
 
+@login_required(login_url='/login/')
 def previsao(request):
     return render(request, 'clients_profiles/previsao.html')
 
+@login_required(login_url='/login/')
 def mapadecalor(request):
     return render(request, 'clients_profiles/mapadecalor.html')
 
+@login_required(login_url='/login/')
 def relatorio(request):
     return render(request, 'clients_profiles/relatorio.html')
 
+@login_required(login_url='/login/')
 def data(request):
     return render(request, 'clients_profiles/data.html')
 
+@login_required(login_url='/login/')
+@permission_required('clients_profiles.view_airqualitydata', raise_exception=True)
 # Endpoint para obter limites de datas, cluisterizar e criar modelo
 def get_date_limits(request):
     try:
@@ -83,6 +92,9 @@ def get_date_limits(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+@login_required(login_url='/login/')
+#Funcao que executa com "Criar Cluster Geografico" no template "previsao.html"
+@permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 def create_cluster(request):
     global db_heatmap
     if request.method == 'POST':
@@ -192,7 +204,8 @@ def get_plot(request):
 
     return JsonResponse({'error': 'Nenhum dado disponível para plotar.'}, status=400)
 """
-
+#Executa logo após "create_cluster" no template "previsao.html" e habilita "Fazer Previsão"
+@permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 # Endpoint para definir regiões
 def define_regions(request):
     global db_heatmap
@@ -228,33 +241,36 @@ def define_regions(request):
         #return JsonResponse({'message': 'Regiões definidas com sucesso!'})
     return JsonResponse({'error': 'Método não permitido'}, status=405)
 
-def relatorio():
-    ################################################################################################################################################################
-    #para decidir:
-    '''
-    se (info de todos cluster):
-        fazer predict de todos clustuers #dentro da propria func relatorio
-    senao
-        recebe resultado do train_model 
-    '''
-    ################################################################################################################################################################
-    #recebe dias previstos
-    #recebe intervalo de dados do treino
-    #recebe predição
-    #recebe clusters
-    return 0
+# @permission_required('clients_profiles.add_airqualitydata', raise_exception=False)
+# def relatorio():
+#     ################################################################################################################################################################
+#     #para decidir:
+#     '''
+#     se (info de todos cluster):
+#         fazer predict de todos clustuers #dentro da propria func relatorio
+#     senao
+#         recebe resultado do train_model
+#     '''
+#     ################################################################################################################################################################
+#     #recebe dias previstos
+#     #recebe intervalo de dados do treino
+#     #recebe predição
+#     #recebe clusters
+#     return 0
 
+#Executa logo após "define_regions" no template "previsao.html"
+@permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 # Endpoint para treinar modelo
 def train_model(request):
     global db_heatmap, trained_models_list
     if request.method == 'POST':
         # Verifique se o db_heatmap existe e está carregado
         print("db_heatmap:", db_heatmap.head() if not db_heatmap.empty else "db_heatmap está vazio")
-
         #Receber os clusters selecionados do front-end
         print(request.body)
         data = json.loads(request.body)
         selected_clusters = data.get('clusters', [])
+        forecast_period = int(data.get('forecast_period'))
         #selected_clusters = request.POST.getlist('clusters')  
         #selected_clusters = list(map(int, selected_clusters))  # Converter para inteiros
         selected_clusters = [int(cluster) for cluster in selected_clusters]  # Filtrar apenas os dígitos
@@ -286,7 +302,8 @@ def train_model(request):
             # Extrair os valores
             try:
                 X_cluster_totalpm = cluster_db['total_pm'].astype(np.float64).values
-                y_pm = cluster_db['total_pm'].astype(np.float64).values
+                X_cluster_temp = cluster_db['temp'].astype(np.float64).values
+                #y_pm = cluster_db['total_pm'].astype(np.float64).values
             except Exception as e:
                 print(f"Erro ao converter colunas para o cluster {cluster}:", e)
                 continue
@@ -295,32 +312,41 @@ def train_model(request):
                 continue
 
             # 🔍 Dividir em treino e teste
-            n = int(len(X_cluster_totalpm) * 0.8)
-            X_train, y_train = X_cluster_totalpm[:n], y_pm[:n]
-            X_test, y_test = X_cluster_totalpm[n:], y_pm[n:]
+            n = int(len(X_cluster_totalpm))
+            y_pm = cluster_db['total_pm'].astype(np.float64).values
+            y_temp = cluster_db['temp'].astype(np.float64).values
+            X_cluster_train = np.column_stack((X_cluster_totalpm[:n], X_cluster_temp[:n])).T
+            y_pm_train = y_pm[:n]
+            y_temp_train = y_temp[:n]
+            model_pm, _ = model_singh(X_cluster_train,y_pm_train) # Criação do modelo para pm
+            model_temp, _ = model_singh(X_cluster_temp,y_temp_train) # Criação do modelo para temp
+            X_temp = np.zeros(forecast_period+1)
+            X_test_temp = np.array(X_cluster_temp[n-1])
+            X_temp[0] = X_test_temp
+            X_pm = np.array([X_cluster_totalpm[n-1]])
+            X_pm[0]
+            X_test_pm = np.column_stack((X_pm[0], X_temp[0])).T
+            yp = np.zeros([2,forecast_period])
 
-            if len(X_train) == 0 or len(y_train) == 0:
-                print(f"Dados insuficientes para o treino do cluster {cluster}")
-                continue
+            for i in range(1, forecast_period+1):
+                predict_temp = predict(X_temp, model_temp) # Previsões do modelo temp
+                predict_pm = predict(X_test_pm, model_pm) # Previsões do modelo pm
+                X_temp[i] = predict_temp[i-1]
+                X_test_pm[0] = predict_pm[0]
+                X_test_pm[1] = predict_temp[i]
+                yp[0][i-1] = X_test_pm[0]
+                yp[1][i-1] = X_temp[i]
+                
+            #predict_dates = dates_p[1:]
 
-            #Treinar o modelo
             try:
-                model, tree = model_singh(X_train, y_train)
-                predictions = predict(X_test, model)
-            except Exception as e:
-                print(f"Erro ao treinar o modelo para o cluster {cluster}:", e)
-                continue
-            
-            # Calcular o RMSE
-            try:
-                #rmse_error = rmse(predictions, y_test)
                 ##-================================================================================================================================================
                 #Adicionar datas Inicio e Fim do modelo, e data de previsão
                 ##-================================================================================================================================================
                 result = {
                     'cluster': cluster,
                     #'real': y_test,#.tolist(),
-                    'forecast': predictions,#.tolist(),
+                    'forecast': yp[0],#.tolist(),
                     #'rmse': rmse_error
                 }
 
@@ -339,13 +365,33 @@ def train_model(request):
             # Retornar os resultados para o front-end
         if models_results:
             print(f"Modelos treinados com sucesso! {models_results}")
-            return JsonResponse({'message': 'Modelos treinados com sucesso!', 'models': models_results})
+            # guardar as infos
+            # Aqui vamos retornar um csv com os dados
+            # Aqui vamos retornar um csv com os dados
+            # clusters vao ser as colunas e cada linha vai ser uma data comecando da end_date ate end_date + forecast_period
+            # Cada cluster vai ter 2 colunas, uma para pm e outra para temp
+            df = pd.DataFrame()
+            last_date = db_heatmap['date'].max()
+            for model in models_results:
+                for i in range(forecast_period):
+                    new_row = {
+                        'cluster': model['cluster'],
+                        'pm': model['forecast'][i],
+                        'temp': model['forecast'][i],
+                        'date': last_date + pd.DateOffset(days=i + 1)  # Ensure correct date progression
+                    }
+                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="trained_models.csv"'
+            df.to_csv(path_or_buf=response, index=False)
+            return response
         else:
             return JsonResponse({'error': 'Nenhum modelo foi treinado com sucesso.'}, status=400)
         #return JsonResponse({'message': 'Modelos treinados com sucesso!', 'models': trained_models_list})
     return JsonResponse({'error': 'Método não permitido'}, status=405)
 
-@permission_required('clients_profiles.view_airqualitydata', raise_exception=True)
+#gera heatmap no template "mapadecalor.html"
+@permission_required('clients_profiles.view_airqualitydata', raise_exception=False)
 def generate_heatmap(request):
     try:
         pm_type = request.GET.get('pm_type', 'pm25m')
@@ -1360,103 +1406,33 @@ def graph(real, fore):
   plt.title('Real x Predito')          # Titulo do grafico
   plt.legend(loc = 4)                   # Legenda do grafico
 
-
-
-
-
 """
-# View para a página web
-def cluster_geografico(request):
-    # Gere o gráfico chamando a função
-    fig = clusters_plot(None, None, None)  # Substitua os argumentos conforme necessário
+        y_c = df_cluster['cluster'].tolist()
+        xk_c = df_cluster[['lat', 'lon']].astype(np.float64).values
+        ll_c = df_cluster[['lat', 'lon', 'total_pm']].astype(np.float64).values
 
-    # Converta o gráfico para HTML
-    graph_html = to_html(fig, full_html=False)
+        clusters_plot(xk_c, y_c, ll_c, title = cp)
 
-    # Renderize o template com o gráfico
-    return render(request, 'cluster_geografico.html', {'graph': graph_html})
+        fig = plt.figure(figsize=(12,6))      # Tamanho da figura
+        ax1 = fig.add_subplot()               # Adiciona o grafico
 
+        ax1.plot(dates_p[1:], yp[0], label = 'Valores Previstos', linestyle = '-', color = 'orange')         # Plotagem do sinal
 
-def clusters_plot(x, y, ll):
-    global db_heatmap
-    if db_heatmap is not None:
-        xk_heatmap = db_heatmap[['lat', 'lon']].values
-        y = db_heatmap['cluster'].values
-        latlon = db_heatmap[['lat', 'lon']].values
+        ax1.set_xlabel('Dias')                   # Nome do eixo x
+        ax1.set_ylabel('Particulado')                   # Nome do eixo y
+        plt.grid(axis='y', linestyle='--', alpha=0.7)
+        plt.title(f'Previsão do Nível de Particulados no Cluster {cp}')          # Titulo do grafico
+        plt.legend(loc = 2)                   # Legenda do grafico
 
-        # Geração do gráfico
-        colors = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999', '#e41a1c', '#dede00']
-        df_plot = {
-            'latitude': latlon[:, 1],
-            'longitude': latlon[:, 0],
-            'cluster': y
-        }
-        fig = px.scatter(
-            df_plot,
-            x='latitude',
-            y='longitude',
-            color='cluster',
-            color_discrete_sequence=colors,
-            title='Clusterização',
-            width=800,
-            height=600
-        )
-        fig.update_layout(
-            plot_bgcolor='white',
-            paper_bgcolor='white',
-            font=dict(color='black'),
-            xaxis=dict(gridcolor='gray'),
-            yaxis=dict(gridcolor='gray')
-        )
+        # Exibindo o gráfico
+        plt.xticks(rotation=90)  # Rotaciona os rótulos das datas
+        plt.tight_layout()  # Ajusta o layout para não cortar nada
+        plt.show()
+        predict_cluster = yp[0]
+        predict_dates = dates_p[1:]
+        predict_clsuter = cp
 
-        # Serializa o gráfico para JSON e retorna ao frontend
-        #graph_json = pio.to_json(fig)
-    return fig.show()#graph_json
+        predictions.append([predict_cluster, predict_dates, predict_clsuter])
 
-
-#-----------------------------------------------------------------------------------------------------
-def clusters_test_plot(x, ll, r0):
-
-  print(f'r0 = {r0}')
-
-  evol = EvolvingClustering(macro_cluster_update=1, variance_limit=r0, debug=False)
-  evol.fit(x)
-
-  y = evol.predict(x)
-
-  print(f'clusters: {max(y) + 1}')
-
-  # Definindo a paleta de cores
-  colors = list(islice(cycle(['#377eb8', '#ff7f00', '#4daf4a',
-                              '#f781bf', '#a65628', '#984ea3',
-                              '#999999', '#e41a1c', '#dede00']),
-                      int(max(y) + 1)))
-
-  # Criando um DataFrame para o Plotly
-  df = {
-      'lat': ll[:, 1],
-      'lon': ll[:, 0],
-      'cluster': y
-  }
-  
-  # Criando o gráfico de dispersão com Plotly Express
-  fig = px.scatter(
-      df,
-      x='lat',
-      y='lon',
-      color='cluster',
-      color_discrete_sequence=colors,  # Usando a paleta de cores personalizada
-      title='Evolving',
-      width=800,
-      height=600
-  )
-
-  # Atualizar o layout para deixar o fundo preto
-  fig.update_layout(
-      plot_bgcolor='white',     # Cor de fundo do gráfico
-      paper_bgcolor='white',    # Cor de fundo ao redor do gráfico
-      font=dict(color='black')  # Alterar a cor da fonte para branco (para contraste)
-  )
-  # Mostrando o gráfico
-  return fig.show()
-"""
+    return predictions
+        """
