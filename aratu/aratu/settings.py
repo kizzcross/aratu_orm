@@ -22,11 +22,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-%@c8+z52(t)pp#4ekh%lia$itbmn-sgr+a7ohx(9hng76$45zk'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['ifmg.aratu.net', '131.255.252.77', 'localhost', '127.0.0.1']
 
+#CORS_ALLOW_ALL_ORIGINS = True
 
+#CORS_ALLOWED_ORIGINS = ['ifmg.aratu.net', '131.255.252.77', 'localhost', '127.0.0.1']
 
 LOGIN_URL = '/login/'  # Define a URL para a página de login
 LOGIN_REDIRECT_URL = '/'  # Redireciona para a página inicial após o login
@@ -45,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+ #   'corsheaders'
     'rest_framework',
     'clients_profiles',
     'sensor',
@@ -90,7 +93,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'auditlog.middleware.AuditlogMiddleware'
+    'auditlog.middleware.AuditlogMiddleware',
+#    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'aratu.urls'
