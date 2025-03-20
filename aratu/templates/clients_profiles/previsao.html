@@ -295,7 +295,8 @@
                 forecast_period: forecastPeriodInput.value //Envia o período de previsão
             });
             data2 = await sendRequest('/clients_profiles/define-regions/', 'POST', {});
-            if (data2 && data2.coordinates) {
+            if (data2 && data2.coordinates)
+            {
                 alert('Regiões definidas com sucesso!');
                 trainModelButton.style.display = 'inline-block';
                 // Inicializa o mapa
@@ -358,7 +359,9 @@
                 // Ajusta o mapa para mostrar todos os pontos
                 const bounds = data2.coordinates.map(coord => [coord.latitude, coord.longitude]);
                 map.fitBounds(bounds);
-            } else {
+            }
+            else
+            {
                 alert('Erro ao definir regiões.');
             }
         });

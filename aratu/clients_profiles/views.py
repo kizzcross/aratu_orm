@@ -347,6 +347,7 @@ def train_model(request):
                     'cluster': cluster,
                     #'real': y_test,#.tolist(),
                     'forecast': yp[0],#.tolist(),
+                    'temp': yp[1],#.tolist(),
                     #'rmse': rmse_error
                 }
 
@@ -377,7 +378,7 @@ def train_model(request):
                     new_row = {
                         'cluster': model['cluster'],
                         'pm': model['forecast'][i],
-                        'temp': model['forecast'][i],
+                        'temp': model['temp'][i],
                         'date': last_date + pd.DateOffset(days=i + 1)  # Ensure correct date progression
                     }
                     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
