@@ -2,4 +2,4 @@ db.sqlite3
 # venv
 venv/
 aratu/static/*
-aratu/__pycache__/*
+aratu/aratu/__pycache__/*
