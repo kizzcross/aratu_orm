@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import AirQualityMeter, MicroController, Sensor, AirQualityData
+from .models import AirQualityMeter, MicroController, Sensor, AirQualityData, BackupConfig
 
 # Customize the AirQualityMeter admin
 @admin.register(AirQualityMeter)
@@ -50,3 +50,7 @@ class AirQualityDataAdmin(admin.ModelAdmin):
             'fields': ('ax', 'ay', 'az', 'gx', 'gy', 'gz')
         }),
     )
+
+@admin.register(BackupConfig)
+class BackupConfigAdmin(admin.ModelAdmin):
+    list_display = ('backup_interval_days', 'data_retention_days', 'last_backup', 'enabled')
