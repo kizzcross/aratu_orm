@@ -34,7 +34,7 @@ CSRF_COOKIE_SECURE = True
 CSRF_TRUSTED_ORIGINS = ['https://ifmg.aratu.net']
 
 ALLOWED_HOSTS = ['ifmg.aratu.net', '131.255.252.77', 'localhost', '127.0.0.1' , '192.168.27.169']
-
+#ALLOWED_HOSTS = ['ifmg.aratu.net', '131.255.252.77', 'localhost', '127.0.0.1' , '192.168.27.169', '191.57.31.3]
 
 LOGIN_URL = '/login/'  # Define a URL para a página de login
 LOGIN_REDIRECT_URL = '/'  # Redireciona para a página inicial após o login
@@ -122,12 +122,15 @@ WSGI_APPLICATION = 'aratu.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+
+from .config import DATABASES
+DATABASES = DATABASES
+#{
+#    'default': {
+#        'ENGINE': 'django.db.backends.sqlite3',
+#        'NAME': BASE_DIR / 'db.sqlite3',
+#    }
+#}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
