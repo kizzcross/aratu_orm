@@ -79,6 +79,14 @@ class PredictedData(models.Model):
     how_many_days = models.IntegerField()
 
 
+class BackupConfig(models.Model):
+    backup_interval_days = models.PositiveIntegerField(default=30)
+    data_retention_days = models.PositiveIntegerField(default=90)
+    last_backup = models.DateTimeField(null=True, blank=True)
+    max_db_size_mb = models.PositiveIntegerField(null=True, blank=True)  # optional trigger
+    enabled = models.BooleanField(default=True)
+
+
 # all models must be auditables
 auditlog.register(AirQualityMeter)
 auditlog.register(MicroController)

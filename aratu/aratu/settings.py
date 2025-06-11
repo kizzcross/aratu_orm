@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-%@c8+z52(t)pp#4ekh%lia$itbmn-sgr+a7ohx(9hng76$45zk'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 # Informa ao Django para confiar no cabeçalho X-Forwarded-Proto enviado pelo proxy (Nginx)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -35,19 +35,12 @@ CSRF_TRUSTED_ORIGINS = ['https://ifmg.aratu.net']
 
 ALLOWED_HOSTS = ['ifmg.aratu.net', '131.255.252.77', 'localhost', '127.0.0.1' , '192.168.27.169']
 
-#CORS_ALLOW_ALL_ORIGINS = True
-
-#CORS_ALLOWED_ORIGINS = ['ifmg.aratu.net', '131.255.252.77', 'localhost', '127.0.0.1']
 
 LOGIN_URL = '/login/'  # Define a URL para a página de login
 LOGIN_REDIRECT_URL = '/'  # Redireciona para a página inicial após o login
 LOGOUT_REDIRECT_URL = '/'  # Redireciona para a página inicial após o logout
 
 # Application definition
-
-from .config import DATABASES
-DATABASES = DATABASES
-
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -56,7 +49,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
- #   'corsheaders'
     'rest_framework',
     'clients_profiles',
     'sensor',
@@ -102,8 +94,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'auditlog.middleware.AuditlogMiddleware',
-#    'corsheaders.middleware.CorsMiddleware',
+    'auditlog.middleware.AuditlogMiddleware'
 ]
 
 ROOT_URLCONF = 'aratu.urls'
@@ -129,7 +120,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'aratu.wsgi.application'
 
 # Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#database
+# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
