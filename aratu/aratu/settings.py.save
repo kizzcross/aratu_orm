@@ -22,18 +22,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-%@c8+z52(t)pp#4ekh%lia$itbmn-sgr+a7ohx(9hng76$45zk'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-# Informa ao Django para confiar no cabeçalho X-Forwarded-Proto enviado pelo proxy (Nginx)
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-# Garante que os cookies de sessão e CSRF só sejam enviados por HTTPS.
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-
-CSRF_TRUSTED_ORIGINS = ['https://ifmg.aratu.net']
-
-ALLOWED_HOSTS = ['ifmg.aratu.net', '131.255.252.77', 'localhost', '127.0.0.1' , '192.168.27.169']
+ALLOWED_HOSTS = ['ifmg.aratu.net', '131.255.252.77', 'localhost', '127.0.0.1' , '192.168.27.169', '191.57.31.3]
 
 #CORS_ALLOW_ALL_ORIGINS = True
 
