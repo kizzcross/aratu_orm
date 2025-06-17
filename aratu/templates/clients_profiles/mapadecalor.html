@@ -85,7 +85,12 @@
     } 
 
         function importData() {
-        fetch('/sensor/import/')
+            fetch('/sensor/import/',{
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')  // se estiver usando CSRF protection
+                }
+            })
             .then(response => response.json())
             .then(data => alert(data.message))
             .catch(error => alert('Erro na importação: ' + error));
