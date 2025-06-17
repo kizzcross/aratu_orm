@@ -85,15 +85,17 @@
     } 
 
         function importData() {
-            fetch('/sensor/import/',{
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken')  // se estiver usando CSRF protection
+            fetch('/sensor/import/')
+            .then(async (response) => {
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error('Resposta inesperada do servidor: ' + text.slice(0, 100));
                 }
+                const data = await response.json();
+                alert(data.message);
             })
-            .then(response => response.json())
-            .then(data => alert(data.message))
-            .catch(error => alert('Erro na importação: ' + error));
+            .catch(error => alert('Erro na importação: ' + error.message));
         }
         /*
         function generateHeatmap() {
