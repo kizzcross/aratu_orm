@@ -70,7 +70,7 @@ class Command(BaseCommand):
         start_memory, start_cpu = monitor_usage()
 
         # Load data from Excel
-        file_path = "/home/ifmg/Project/aratu_orm/aratu/MQA_DATA.xlsx"
+        file_path = 'MQA_DATA.xlsx'
         air_quality_data = pd.read_excel(file_path)
         self.stdout.write(self.style.SUCCESS("Excel imported to DataFrame"))
 
@@ -155,9 +155,11 @@ class Command(BaseCommand):
         for column in columns_to_replace_with_last_value:
             air_quality_data = threat_lat_and_lon_outliers(air_quality_data, column)
         # Insert data into the Django model
-        for index, row in air_quality_data.iterrows():
-            print(row)
-            AirQualityData.objects.create(
+        #for index, row in air_quality_data.iterrows():
+        instances = [
+	    #print(row)
+	    AirQualityData(
+            #AirQualityData.objects.create(
                 measure_time=row['time'],
                 temperature=row['temp'],
                 humidity=row['umi'],
@@ -180,6 +182,9 @@ class Command(BaseCommand):
                 pts=row['pts'],
                 address="Unknown"  # Assuming address is not provided in your DataFrame
             )
+	    for _, row in air_quality_data.iterrows()
+	]
+	AirQualityData.objects.bulk_create(instances, batch_size=1000)
             # use time and acelerometer values to set a velocity value
 
 
