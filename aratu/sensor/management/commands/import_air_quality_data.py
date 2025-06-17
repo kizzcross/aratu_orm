@@ -182,9 +182,9 @@ class Command(BaseCommand):
                 pts=row['pts'],
                 address="Unknown"  # Assuming address is not provided in your DataFrame
             )
-	    for _, row in air_quality_data.iterrows()
-	]
-	AirQualityData.objects.bulk_create(instances, batch_size=1000)
+	        for _, row in air_quality_data.iterrows()
+	    ]
+        AirQualityData.objects.bulk_create(instances, batch_size=1000)
             # use time and acelerometer values to set a velocity value
 
 
