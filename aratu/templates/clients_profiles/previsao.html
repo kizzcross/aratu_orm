@@ -197,8 +197,15 @@
 
         // Função para enviar requisições
         async function sendRequest(url, method, payload = {}, timeout = 600000) {
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeout);
+
+            //const controller = new AbortController();
+            let controller, id;
+            //const id = setTimeout(() => controller.abort(), timeout);
+            if (typeof timout === 'number'){
+                controller = new AbortController();
+                id = setTimeout(() => controller.abort(), timeout);
+            }
+
             try {
                 const response = await fetch(url, {
                     method: method,
@@ -206,14 +213,16 @@
                         'Content-Type': 'application/json',
                         'X-CSRFToken': getCSRFToken()
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify(payload),
-                    signal: controller.signal
+                    signal: controller?.signal
                 });
-                clearTimeout(id);
+                if (id) clearTimeout(id);
                 return await response.json();
             } catch (error) {
-                clearTimeout(id);
+                if (id) clearTimeout(id);
                 console.error('Erro ao enviar requisição:', error);
+                throw error;
             }
         }
 
@@ -299,7 +308,7 @@
                 end_date: endDateInput.value,
                 forecast_period: forecastPeriodInput.value //Envia o período de previsão
             });
-            data2 = await sendRequest('/clients_profiles/define-regions/', 'POST', {});
+            data2 = await sendRequest('/clients_profiles/define-regions/', 'POST', {}, null);
             console.log('resposta define-regions:', data2);
             if (data2 && data2.coordinates)
             {
