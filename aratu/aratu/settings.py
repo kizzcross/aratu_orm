@@ -186,3 +186,22 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute='*'),  # Every minute
     },
 }
+
+#Cache para testes locais
+#CACHES = {
+#    'default': {
+#        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+#        'LOCATION': 'heatmap-cache',
+#    }
+#}
+
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',  # ou outro DB Redis
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}

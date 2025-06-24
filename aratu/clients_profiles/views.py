@@ -39,9 +39,15 @@ import json
 import plotly.io as pio
 from plotly.io import to_html
 from django.utils.dateparse import parse_date
-
+from django.core.cache import cache
 
 db_heatmap = pd.DataFrame()
+#a ideia é salvar esse dataframe na sessao do usuario e excluir quando encerrar conexao
+#pode ser salvo em cookies, cache ou banco de dados.
+#por ser temporario é mais apropriado em cache
+#request.session['db_heatmap'] = db_heatmap.to_json(orient='records')
+#cache_key = f'db_heatmap_{request.user.id}'
+#cache.set(cache_key, db_heatmap.to_json(orient='records'), timeout=900)
 trained_models_list = []
 #-------------------------------------------------------------------------
 
@@ -96,7 +102,12 @@ def get_date_limits(request):
 #Funcao que executa com "Criar Cluster Geografico" no template "previsao.html"
 @permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 def create_cluster(request):
-    global db_heatmap
+    #global db_heatmap
+    #cache_key = f'db_heatmap_{request.user.id}'
+    #db_json = cache.get(cache_key)
+    #if not db_json:
+    #    return JsonResponse({'error': 'Dados expiraram. Refaça a criação de Clusters Geográficos'}, status = 400)
+    #db_heatmap = pd.read_json(db_json)
     if request.method == 'POST':
         try:
             print("Recebendo requisição POST")  # Debug inicial
@@ -149,6 +160,9 @@ def create_cluster(request):
                 print("DataFrame db_heatmap está vazio")
                 logging.warning("DataFrame db_heatmap está vazio")
                 return JsonResponse({'error': 'Nenhum dado encontrado para o intervalo fornecido'}, status=404)
+
+            cache_key = f'db_heatmap_{request.user.id}'
+            cache.set(cache_key, db_heatmap.to_json(orient='records'), timeout=900)
 
             # Gerando HTML do cabeçalho e rodapé
             head_html = db_heatmap.to_html(index=False)
@@ -208,8 +222,16 @@ def get_plot(request):
 @permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 # Endpoint para definir regiões
 def define_regions(request):
-    global db_heatmap
+
     if request.method == 'POST':
+
+        cache_key = f'db_heatmap_{request.user.id}'
+        db_json = cache.get(cache_key)
+        if not db_json:
+            return JsonResponse({'error': 'Dados expiraram. Refaça a criação de Clusters Geográficos'}, status = 400)
+        db_heatmap = pd.read_json(db_json)
+        #global db_heatmap
+
         # Lógica para definir regiões
         xk_heatmap = db_heatmap[['lat', 'lon']].astype(np.float64).values
         #latlon = db_heatmap[['lat', 'lon']].astype(np.float64).values
