@@ -131,7 +131,7 @@
     <canvas id="myChart" width="50%" height="50%"></canvas>
 </div>-->
 
-
+<!--
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const startDateInput = document.getElementById('start-date');
@@ -147,6 +147,44 @@
             return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         }
 
+        function resetInterface() {
+            // 1. Limpa mapa
+            if (window.trainedMap) {
+                window.trainedMap.remove();
+                window.trainedMap = null;
+            }
+
+            // 2. Limpa gráficos
+            const plotContainer = document.getElementById('plot-container');
+            if (plotContainer) {
+                plotContainer.innerHTML = '';
+            }
+
+            // 3. Limpa cluster checkboxes
+            const clusterForm = document.getElementById('cluster-form');
+            if (clusterForm) {
+                clusterForm.innerHTML = '';
+            }
+
+            // 4. Oculta ou reseta áreas que não devem estar visíveis ainda
+            const clusterSelectionDiv = document.getElementById('cluster-selection');
+            if (clusterSelectionDiv) {
+                clusterSelectionDiv.style.display = 'none';
+            }
+
+            const dataPreviewDiv = document.getElementById('data-preview');
+            if (dataPreviewDiv) {
+                dataPreviewDiv.style.display = 'none';
+                dataPreviewDiv.innerHTML = '';
+            }
+
+            // 5. Oculta botão de previsão até recriar os clusters
+            const trainModelButton = document.getElementById('train-model');
+            if (trainModelButton) {
+                trainModelButton.style.display = 'none';
+            }
+        }
+
         // Atualiza o estado do botão de cluster
         function toggleClusterButton() {
             const startDate = new Date(startDateInput.value);
@@ -157,7 +195,7 @@
             const isEndDateValid = !isNaN(endDate.getTime());
             const isForecastPeriodValid = !isNaN(forecastPeriod) && forecastPeriod > 0;
 
-            clusterButton.disabled = !(isStartDateValid && isEndDateValid && isForecastPeriodValid);
+            clusterButton.disabled = !((isStartDateValid && isEndDateValid && isForecastPeriodValid) && (startDate < endDate));
         }
 
         // Busca os limites de data da API
@@ -289,6 +327,7 @@
         });
         //----------------------------------------------
         clusterButton.addEventListener('click', async () => {
+            resetInterface();
             const data = await sendRequest('/clients_profiles/create-cluster/', 'POST', {
                 start_date: startDateInput.value,
                 end_date: endDateInput.value,
@@ -300,16 +339,17 @@
                 alert('Regiões definidas com sucesso!');
                 trainModelButton.style.display = 'inline-block';
                 // Inicializa o mapa
-                const mapContainer = document.getElementById('map');
-                mapContainer.innerHTML = ''; // Limpa o mapa anterior, se houver
-                const map = L.map('map').setView([-15.7942, -47.8822], 5); // Centraliza o mapa no Brasil (pode ajustar)
+                //const mapContainer = document.getElementById('map');
+                //mapContainer.innerHTML = ''; // Limpa o mapa anterior, se houver
+                //const map = L.map('map').setView([-15.7942, -47.8822], 5); // Centraliza o mapa no Brasil (pode ajustar)
                 // Adiciona o tile do OpenStreetMap
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap contributors'}).addTo(map);
+                //L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap contributors'}).addTo(map);
                 // Definir cores para clusters diferentes
                 const colors = ['red', 'blue', 'green', 'orange', 'purple', 'cyan', 'magenta'];
                 // Encontra os clusters únicos
                 const uniqueClusters = [...new Set(data2.coordinates.map(coord => coord.cluster))];
                 // Adiciona marcadores para cada coordenada
+/*'''
                 data2.coordinates.forEach(coord => {
                     const color = colors[coord.cluster % colors.length]; // Alterna as cores para clusters
                     const marker = L.circleMarker([coord.latitude, coord.longitude], {
@@ -355,10 +395,35 @@
                     //marker.bindPopup(`Cluster: ${coord.cluster}<br>Lat: ${coord.latitude}<br>Lon: ${coord.longitude}`);
                     document.getElementById('train-model').style.display = 'inline-block';
                 });
-
+'''*/
+                
+                data2.coordinates.forEach(coord => {
+                const color = colors[coord.cluster % colors.length];
+                L.circleMarker([coord.latitude, coord.longitude], {
+                    radius: 8,
+                    fillColor: color,
+                    color,
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.7
+                })
+                .addTo(window.trainedMap)
+                .bindTooltip(
+                    `Cluster: ${coord.cluster}<br>Lat: ${coord.latitude.toFixed(4)}<br>Lon: ${coord.longitude.toFixed(4)}`,
+                    { direction: 'top', offset: [0, -10], opacity: 0.9 }
+                )
+                .on('click', () => {
+                    document.querySelector(`input[name="cluster"][value="${coord.cluster}"]`).checked = true;
+                });
+                });
                 // Ajusta o mapa para mostrar todos os pontos
+                /*
                 const bounds = data2.coordinates.map(coord => [coord.latitude, coord.longitude]);
                 map.fitBounds(bounds);
+                */
+                const bounds = data2.coordinates.map(c => [c.latitude, c.longitude]);
+                window.trainedMap.fitBounds(bounds);
+                setTimeout(() => window.trainedMap.invalidateSize(), 0);
             }
             else
             {
@@ -373,6 +438,239 @@
         fetchDateLimits();
     });
 </script>
+-->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const startDateInput = document.getElementById('start-date');
+    const endDateInput = document.getElementById('end-date');
+    const forecastPeriodInput = document.getElementById('forecast-period');
+    const clusterButton = document.getElementById('generate-cluster');
+    const trainModelButton = document.getElementById('train-model');
+
+    // Helper para CSRF
+    function getCSRFToken() {
+      return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    // Reset completo da interface
+    function resetInterface() {
+      // 1) Remove mapa antigo
+      if (window.trainedMap) {
+        window.trainedMap.remove();
+        window.trainedMap = null;
+      }
+
+      // 2) Limpa gráficos
+      const plotContainer = document.getElementById('plot-container');
+      if (plotContainer) plotContainer.innerHTML = '';
+
+      // 3) Limpa checkboxes de cluster
+      const clusterForm = document.getElementById('cluster-form');
+      if (clusterForm) clusterForm.innerHTML = '';
+
+      // 4) Oculta seções
+      const clusterSelectionDiv = document.getElementById('cluster-selection');
+      if (clusterSelectionDiv) clusterSelectionDiv.style.display = 'none';
+
+      const dataPreviewDiv = document.getElementById('data-preview');
+      if (dataPreviewDiv) {
+        dataPreviewDiv.style.display = 'none';
+        dataPreviewDiv.innerHTML = '';
+      }
+
+      // 5) Oculta botão de previsão
+      trainModelButton.style.display = 'none';
+    }
+
+    // Habilita botão de cluster
+    function toggleClusterButton() {
+      const startDate = new Date(startDateInput.value);
+      const endDate = new Date(endDateInput.value);
+      const forecastPeriod = parseInt(forecastPeriodInput.value);
+      const valid = !isNaN(startDate) && !isNaN(endDate) && !isNaN(forecastPeriod)
+        && forecastPeriod > 0 && startDate < endDate;
+      clusterButton.disabled = !valid;
+    }
+
+    // Busca limites de data na API
+    async function fetchDateLimits() {
+      try {
+        const resp = await fetch('/date-limits/');
+        const data = await resp.json();
+        if (data.start_date && data.end_date) {
+          const fmt = d => d.toISOString().slice(0,10);
+          const s = new Date(data.start_date), e = new Date(data.end_date);
+          startDateInput.min = fmt(s);
+          startDateInput.max = fmt(e);
+          endDateInput.min = fmt(s);
+          endDateInput.max = fmt(e);
+          document.getElementById('min-date-display').textContent = fmt(s);
+          document.getElementById('max-date-display').textContent = fmt(e);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar limites:', err);
+      }
+    }
+
+    // Função genérica de requisição
+    async function sendRequest(url, method, payload = {}) {
+      const resp = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify(payload)
+      });
+      return resp.json();
+    }
+
+    trainModelButton.addEventListener('click', async () => {
+        // Captura os clusters selecionados
+        const selectedClusters = Array.from(document.querySelectorAll('input[name="cluster"]:checked'))
+            .map(checkbox => parseInt(checkbox.value));  // Converte para número
+        // Envia os clusters selecionados para o back-end
+        /*
+        const data = await sendRequest('/clients_profiles/train-model/', 'POST', {
+            clusters: selectedClusters,
+            start_date: startDateInput.value,
+            end_date: endDateInput.value,
+            forecast_period: forecastPeriodInput.value
+        }, {
+            headers: {'Content-Type': 'application/json'}  // Certificando-se de que o tipo é JSON
+        });
+        */
+        const response = await fetch('/clients_profiles/train-model/', {
+            method: 'POST',
+            body: JSON.stringify({
+                clusters: selectedClusters,
+                start_date: startDateInput.value,
+                end_date: endDateInput.value,
+                forecast_period: forecastPeriodInput.value
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`Erro ao treinar modelo: ${response.statusText}`);
+        }
+        // Convertendo a resposta para blob (arquivo)
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        // Criando um link para download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'trained_models.csv';
+        document.body.appendChild(a);
+        a.click();
+        if (!response.ok) {
+            throw new Error(`Erro ao treinar modelo: ${response.statusText}`);
+        }
+        // Removendo o elemento após o download
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        console.log({response})
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+        // Verifica se houve erro no envio
+        if (sendResponse.error) {
+            alert(sendResponse.error);
+            return;
+        }
+        // Aguarda a resposta do back-end com o modelo treinado
+        const trainedModelData = await sendRequest('/clients_profiles/train-model/', 'GET');
+        // Verifica se houve erro ao receber os dados do modelo treinado
+        if (trainedModelData.error) {
+            alert(trainedModelData.error);
+            return;
+        }
+        alert(trainedModelData.message);  // Mostra a mensagem que o back-end retorna
+        console.log('Modelo Treinado:', trainedModelData); // Para depuração
+        // Renderiza os gráficos com os dados
+        renderCharts(trainedModelData.models);
+    });
+
+    // Listener do botão de criar cluster
+    clusterButton.addEventListener('click', async () => {
+      resetInterface();
+
+      // 1) Cria clusters no back-end
+      await sendRequest('/clients_profiles/create-cluster/', 'POST', {
+        start_date: startDateInput.value,
+        end_date: endDateInput.value,
+        forecast_period: forecastPeriodInput.value
+      });
+      const data2 = await sendRequest('/clients_profiles/define-regions/', 'POST');
+
+      if (!data2 || !data2.coordinates) {
+        alert('Erro ao definir regiões.');
+        return;
+      }
+
+      alert('Regiões definidas com sucesso!');
+      trainModelButton.style.display = 'inline-block';
+
+      // 2) Inicializa o mapa globalmente
+      window.trainedMap = L.map('map').setView([-15.7942, -47.8822], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(window.trainedMap);
+
+      // 3) Monta checkboxes e marcadores
+      const colors = ['red','blue','green','orange','purple','cyan','magenta'];
+      const uniqueClusters = [...new Set(data2.coordinates.map(c => c.cluster))];
+      const clusterForm = document.getElementById('cluster-form');
+      clusterForm.innerHTML = '';
+      document.getElementById('cluster-selection').style.display = 'block';
+
+      // Prepara checkboxes
+      uniqueClusters.forEach(cluster => {
+        const lbl = document.createElement('label');
+        lbl.innerHTML = `<input type="checkbox" name="cluster" value="${cluster}"> Cluster ${cluster}`;
+        clusterForm.appendChild(lbl);
+      });
+
+      // Desenha marcadores
+      data2.coordinates.forEach(coord => {
+        const color = colors[coord.cluster % colors.length];
+        L.circleMarker([coord.latitude, coord.longitude], {
+          radius: 8,
+          fillColor: color,
+          color,
+          weight: 1,
+          opacity: 1,
+          fillOpacity: 0.7
+        })
+        .addTo(window.trainedMap)
+        .bindTooltip(
+          `Cluster: ${coord.cluster}<br>Lat: ${coord.latitude.toFixed(4)}<br>Lon: ${coord.longitude.toFixed(4)}`,
+          { direction: 'top', offset: [0,-10], opacity: 0.9 }
+        )
+        .on('click', () => {
+          document.querySelector(`input[name="cluster"][value="${coord.cluster}"]`).checked = true;
+        });
+      });
+
+      // 4) Ajusta bounds e força renderização
+      const bounds = data2.coordinates.map(c => [c.latitude, c.longitude]);
+      window.trainedMap.fitBounds(bounds);
+      setTimeout(() => window.trainedMap.invalidateSize(), 0);
+    });
+
+    // Inicialização
+    startDateInput.addEventListener('change', toggleClusterButton);
+    endDateInput.addEventListener('change', toggleClusterButton);
+    forecastPeriodInput.addEventListener('input', toggleClusterButton);
+    fetchDateLimits();
+  });
+</script>
+
+
 </body>
 </html>
 {% endblock %}
