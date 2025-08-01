@@ -4,9 +4,11 @@
 
 {% block content %}
     <h1>Bem-vindo à Home!</h1>
-    <a href="{% url 'admin:index' %}">
-        <button class="admin-button">Área de Administração</button>
-    </a>
+    {% if user.is_staff %}
+        <a href="{% url 'admin:index' %}">
+            <button class="admin-button">Área de Administração</button>
+        </a>
+    {% endif %}
     <style>
         .admin-button {
             margin-right: 10px;
