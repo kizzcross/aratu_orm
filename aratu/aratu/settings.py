@@ -113,6 +113,8 @@ WSGI_APPLICATION = 'aratu.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+#from aratu.config import DATABASES
+#DATABASES = DATABASES
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
