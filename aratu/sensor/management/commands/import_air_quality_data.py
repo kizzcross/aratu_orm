@@ -70,7 +70,7 @@ class Command(BaseCommand):
         start_memory, start_cpu = monitor_usage()
 
         # Load data from Excel
-        file_path = "/home/ifmg/Project/aratu_orm/aratu/MQA_DATA.xlsx"
+        file_path = "aratu/MQA_DATA.xlsx"
         air_quality_data = pd.read_excel(file_path)
         self.stdout.write(self.style.SUCCESS("Excel imported to DataFrame"))
 
