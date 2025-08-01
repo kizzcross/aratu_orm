@@ -21,6 +21,7 @@
     <!-- Navbar -->
     <header>
         <nav>
+            <button onclick="if (history.length > 1) { history.back(); } else { window.location.href = '{% url 'home' %}'; }" class="btn btn-outline-primary">Voltar</button>
             <button onclick="location.href='{% url 'home' %}'" class="nav-button">Home</button>
             <button onclick="location.href='{% url 'previsao' %}'" class="nav-button">Previsão</button>
             <button onclick="location.href='{% url 'mapadecalor' %}'" class="nav-button">Mapa de Calor</button>
