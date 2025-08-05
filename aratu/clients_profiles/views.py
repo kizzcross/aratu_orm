@@ -230,7 +230,7 @@ def define_regions(request):
         if not db_json:
             return JsonResponse({'error': 'Dados expiraram. Refaça a criação de Clusters Geográficos'}, status = 400)
         db_heatmap = pd.read_json(db_json)
-        print("debug: db_heatmap:" + db_heatmap.tail())
+        print("debug: db_heatmap:", db_heatmap.tail())
         #global db_heatmap
         #print(db_heatmap.tail())
         # Lógica para definir regiões
