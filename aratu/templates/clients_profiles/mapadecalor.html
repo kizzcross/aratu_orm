@@ -3,145 +3,134 @@
 {% block title %}Mapa de Calor{% endblock %}
 
 {% block content %}
-<!DOCTYPE html>
-<html lang="en">
-    <style>
-        #map-container {
-            width: 100%;
-            height: 70%;
-            height: 600px;
-            border: 1px solid #ccc;
-            margin-top: 20px;
-        }
-    </style>    
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Air Quality Dashboard</title>
-    <script>
-        
-       // Função atualizada para buscar datas e configurar inputs
-       document.addEventListener('DOMContentLoaded', () => {
-            const startDateInput = document.getElementById('start-date');
-            const endDateInput = document.getElementById('end-date');
+<h1>Air Quality Dashboard</h1>
 
-            async function fetchAndSetDates() {
-                try {
-                    const response = await fetch('/date-limits/');
-                    const data = await response.json();
+<div>
+  <h2>Importar Dados</h2>
+  <button onclick="importData()">Importar Dados de Qualidade do Ar</button>
+</div>
 
-                    if (data.start_date && data.end_date) {
-                        // Aplicar limites nos inputs
-                        startDateInput.min = data.start_date;
-                        startDateInput.max = data.end_date;
-                        endDateInput.min = data.start_date;
-                        endDateInput.max = data.end_date;
+<div>
+  <h2>Gerar Heatmap</h2>
 
-                        // Definir valores padrão
-                        startDateInput.value = data.start_date;
-                        endDateInput.value = data.end_date;
+  {% if perms.clients_profiles.view_airqualitydata %}
+    <label for="pmType">Selecione o tipo de PM:</label>
+    <select id="pmType">
+      <option value="pm1m">PM1.0 (Massa)</option>
+      <option value="pm25m">PM2.5 (Massa)</option>
+      <option value="pm4m">PM4.0 (Massa)</option>
+      <option value="pm10m">PM10 (Massa)</option>
+    </select>
 
-                        // Atualizar exibição textual
-                        document.getElementById('min-date-display').textContent = data.start_date;
-                        document.getElementById('max-date-display').textContent = data.end_date;
-                    }
-                } catch (error) {
-                    console.error('Erro ao configurar datas:', error);
-                }
-            }
-
-            // Executar ao carregar a página
-            fetchAndSetDates();
-        });
-
-    // Função atualizada para gerar heatmap
-    function generateHeatmap() {
-        const pmType = document.getElementById('pmType').value;
-        const startDate = document.getElementById('start-date').value;
-        const endDate = document.getElementById('end-date').value;
-
-        if (!startDate || !endDate) {
-            alert('Selecione ambas as datas!');
-            return;
-        }
-
-        if (new Date(startDate) > new Date(endDate)) {
-            alert('Data inicial não pode ser maior que final!');
-            return;
-        }
-
-        const url = `/clients_profiles/generate-heatmap/?pm_type=${pmType}&start_date=${startDate}&end_date=${endDate}`;
-
-        fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    document.getElementById('map-container').innerHTML = data.map_html;
-                }
-            })
-            .catch(error => alert('Erro: ' + error));
-    } 
-
-        function importData() {
-        fetch('/sensor/import/')
-            .then(response => response.json())
-            .then(data => alert(data.message))
-            .catch(error => alert('Erro na importação: ' + error));
-        }
-        /*
-        function generateHeatmap() {
-            const pmType = document.getElementById('pmType').value;
-            fetch(`/clients_profiles/generate-heatmap/?pm_type=${pmType}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert(data.error);
-                    } else if (data.map_html) {
-                        document.getElementById('map-container').innerHTML = data.map_html;
-                    } else {
-                        alert('Erro desconhecido ao gerar o mapa.');
-                    }
-                })
-                .catch(error => alert('Erro ao gerar o heatmap: ' + error));
-        }
-        */
-    </script>
-</head>
-<body>
-    <h1>Air Quality Dashboard</h1>
-
-    <div>
-        <h2>Importar Dados</h2>
-        <button onclick="importData()">Importar Dados de Qualidade do Ar</button>
+    <div class="form-group">
+      <label for="start-date">Data de Início:</label>
+      <input type="date" id="start-date" name="start-date" required disabled>
+      <label for="end-date">Data de Fim:</label>
+      <input type="date" id="end-date" name="end-date" required disabled>
     </div>
+    <p>Intervalo de Datas: 
+       <span id="min-date-display">—</span> até 
+       <span id="max-date-display">—</span>
+    </p>
+    <button id="btn-heatmap" onclick="generateHeatmap()" disabled>
+      Gerar Heatmap
+    </button>
+  {% else %}
+    <p class="text-danger">
+      Você não tem permissão para acessar o heatmap de qualidade do ar.
+    </p>
+  {% endif %}
+</div>
 
-    <div>
-        <h2>Gerar Heatmap</h2>
-        <label for="pmType">Selecione o tipo de PM:</label>
-        <select id="pmType">
-            <option value="pm1m">PM1.0 (Massa)</option>
-            <option value="pm25m">PM2.5 (Massa)</option>
-            <option value="pm4m">PM4.0 (Massa)</option>
-            <option value="pm10m">PM10 (Massa)</option>
-        </select>
-    
-        <div class="form-group">
-            <label for="start-date">Data de Início:</label>
-            <input type="date" id="start-date" name="start-date" required>
-            <label for="end-date">Data de Fim:</label>
-            <input type="date" id="end-date" name="end-date" required>
-        </div>
-        <p>Intervalo de Datas: <span id="min-date-display"></span> até <span id="max-date-display"></span></p>
-        
-        <button onclick="generateHeatmap()">Gerar Heatmap</button>
-    </div>
-    
-    <div id="map-container">
-        <!-- O mapa será inserido aqui dinamicamente -->
-    </div>
-</body>
-</html>
+<div id="map-container" style="width:100%;height:600px;margin-top:20px;border:1px solid #ccc;">
+  <!-- mapa será injetado aqui -->
+</div>
 
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // elementos
+  const s = document.getElementById('start-date');
+  const e = document.getElementById('end-date');
+  const btn = document.getElementById('btn-heatmap');
+  const infoMin = document.getElementById('min-date-display');
+  const infoMax = document.getElementById('max-date-display');
+
+  // busca limites e habilita/desabilita inputs
+  async function fetchDateLimits() {
+    try {
+      const resp = await fetch('/date-limits/');
+      if (!resp.ok) throw new Error('Sem permissão ou erro de rede');
+      const data = await resp.json();
+
+      // limpa aviso anterior
+      const prev = document.getElementById('no-dates-msg');
+      if (prev) prev.remove();
+
+      if (data.limites) {
+        const fmt = d => d.toISOString().slice(0,10);
+        const start = new Date(data.start_date);
+        const end   = new Date(data.end_date);
+
+        s.min = fmt(start);  s.max = fmt(end);  s.value = fmt(start);
+        e.min = fmt(start);  e.max = fmt(end);  e.value = fmt(end);
+
+        infoMin.textContent = fmt(start);
+        infoMax.textContent = fmt(end);
+
+        s.disabled = e.disabled = false;
+        btn.disabled = false;
+      } else {
+        // sem dados: tudo off
+        s.disabled = e.disabled = true;
+        btn.disabled = true;
+        infoMin.textContent = infoMax.textContent = '—';
+
+        const aviso = document.createElement('p');
+        aviso.id = 'no-dates-msg';
+        aviso.textContent = 'Nenhuma data disponível para gerar heatmap.';
+        aviso.style.color = 'red';
+        infoMax.parentNode.appendChild(aviso);
+      }
+    } catch (err) {
+      console.error(err);
+      // opcional: informar erro de permissão/rede
+    }
+  }
+
+  fetchDateLimits();
+});
+
+// funções auxiliares
+function generateHeatmap() {
+  const pmType    = document.getElementById('pmType').value;
+  const startDate = document.getElementById('start-date').value;
+  const endDate   = document.getElementById('end-date').value;
+  if (!startDate || !endDate) {
+    alert('Selecione ambas as datas!');
+    return;
+  }
+  if (new Date(startDate) > new Date(endDate)) {
+    alert('Data inicial não pode ser maior que final!');
+    return;
+  }
+
+  fetch(
+    `/clients_profiles/generate-heatmap/` +
+    `?pm_type=${pmType}&start_date=${startDate}&end_date=${endDate}`
+  )
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) return alert(data.error);
+      document.getElementById('map-container').innerHTML = data.map_html;
+    })
+    .catch(e => alert('Erro ao gerar heatmap: ' + e));
+}
+
+function importData() {
+  fetch('/sensor/import/')
+    .then(r => r.json())
+    .then(d => alert(d.message))
+    .catch(e => alert('Erro na importação: ' + e));
+}
+</script>
 {% endblock %}

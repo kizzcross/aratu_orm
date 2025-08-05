@@ -82,11 +82,12 @@ def get_date_limits(request):
         # Converter para date objects
         min_date = date_limits['min_date'].date() if date_limits['min_date'] else None
         max_date = date_limits['max_date'].date() if date_limits['max_date'] else None
-
+        limites= (min_date is not None and max_date is not None)
         # Formatar para string ISO (YYYY-MM-DD)
         return JsonResponse({
-            'start_date': min_date.isoformat() if min_date else '',
-            'end_date': max_date.isoformat() if max_date else ''
+            'limites': limites,
+            'start_date': min_date.isoformat() if min_date else None,
+            'end_date': max_date.isoformat() if max_date else None
         })
 
     except Exception as e:
