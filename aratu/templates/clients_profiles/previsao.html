@@ -164,6 +164,23 @@
     <button id="generate-cluster" type="button" disabled>Criar Cluster Geográfico</button>
     <!--<button id="define-regions" type="button" style="display: none;">Definir Regiões</button>-->
     <button id="train-model" type="button" style="display: none;"> Fazer Previsão</button>
+    <button id="information-button" type="button">?</button>
+    <div id="information-box" style="display: none; border: 2px solid #00000088; margin-top: 10px;">
+        <p id="info-interface">Variáveis da Interface:</p>
+        <ul id="info-variables">
+            <li>Data de Início: define a data inicial do intervalo a ser analisado.</li>
+            <li>Data de Fim: define a data final do intervalo a ser analisado.</li>
+            <li>Período de Previsão: define quantos dias serão previstos com base no modelo gerado.</li>
+            <li>Cluster Geográfico: define as regiões de previsão por meio do agrupamento de pontos de dados semelhantes.</li>
+        </ul>
+        <p id="info-forecast">Variáveis da Previsão:</p>
+        <ul id="info-variables">
+            <li>cluster: identifica a qual cluster geográfico a previsão corresponde.</li>
+            <li>pm: representa o valor previsto de material particulado.</li>
+            <li>temp: indica a temperatura prevista.</li>
+            <li>date: corresponde à data referente a cada previsão.</li>
+        </ul>
+    </div>
     <!--
     ##############################################################################################################################################################
     Add mensangem para quando não tiver previsão e usuario clicar em relatório
@@ -190,6 +207,8 @@
     const forecastPeriodInput = document.getElementById('forecast-period');
     const clusterButton = document.getElementById('generate-cluster');
     const trainModelButton = document.getElementById('train-model');
+    const informationButton = document.getElementById('information-button');
+    const informationBox = document.getElementById('information-box');
 
     // Helper para CSRF
     function getCSRFToken() {
@@ -235,6 +254,15 @@
         && forecastPeriod > 0 && startDate < endDate;
       clusterButton.disabled = !valid;
     }
+
+    // Exibe caixa de texto com explicações das variaveis
+    informationButton.addEventListener('click', async () => {
+      if (informationBox.style.display === 'none' || informationBox.style.display === '') {
+        informationBox.style.display = 'block';
+      } else {
+        informationBox.style.display = 'none';
+      }
+    });
 
     // Busca limites de data na API
 async function fetchDateLimits() {
