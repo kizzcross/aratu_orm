@@ -11,9 +11,13 @@
         body {
             font-family: Arial, sans-serif;
         }
+        
+        #titulo {
+            margin: 5px;
+        }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 5px;
         }
 
         #data-preview table {
@@ -32,8 +36,8 @@
         }
 
         button {
-            margin-right: 10px;
-            padding: 10px 20px;
+            margin: 2px;
+            padding: 5px 10px;
             border: none;
             background-color: #007BFF;
             color: white;
@@ -51,19 +55,19 @@
         }
 
         #data-preview {
-            margin-top: 20px;
-            padding: 10px;
+            margin-top: 5px;
+            padding: 5px;
             border: 1px solid #ccc;
             display: none;
         }
 
         #myChart {
-            max-height: 300px;
+            max-height: fit-content;/*300px;*/
             max-width: fit-content;
         }
 
         .chart {
-            margin-bottom: 40px;
+            margin: 5px;
         }
 
         .line {
@@ -78,6 +82,54 @@
         .line-forecast {
             stroke: orange;
         }
+        .plote-container {
+          display: flex;
+          height: 100%;
+        }
+        #map {
+            min-height: 260px;
+            height: calc(100vh - 360px); /* Ajuste 300px conforme a altura dos elementos acima do mapa */
+            flex-grow: 1;
+            width: 100%;
+            margin: 5px;
+        }
+        #subtitulo {
+            margin: 5px;
+        }
+        #cluster-form {
+          display: flex;         /* Ativa o layout flexível */
+          flex-wrap: wrap;       /* Permite que os itens quebrem para a próxima linha */
+          gap: 3px 3px;        /* Adiciona espaçamento: 10px vertical, 20px horizontal */
+        }
+
+        #cluster-form label {
+          /* Define uma base de largura para cada item. */
+          /* O navegador tentará colocar o máximo de itens de 150px em cada linha. */
+          flex-basis: 110px; 
+          
+          /* Evita que os itens encolham demais */
+          flex-shrink: 0;
+          
+          /* Outras estilizações para deixar mais bonito */
+          padding: 2px;
+          border: 1px solid #eee;
+          border-radius: 4px;
+          background-color: #f9f9f9;
+        }
+        #cluster-selection {
+          display: none;
+          margin: 5px 0;
+          padding: 5px;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+        }
+        #forecast-period {
+          width: 100px; /* Ajuste o valor como preferir. 100px é um bom começo. */
+        }
+        #row-data-limits {
+          margin: 5px;
+        }
+
     </style>
     <!-- Dependências do DataTables -->
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
@@ -92,7 +144,7 @@
     <!--<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>-->
 </head>
 <body>
-<h1>Página de Previsão</h1>
+<h1 id="titulo">Página de Previsão</h1>
 {% if perms.clients_profiles.view_airqualitydata %}
 <form id="date-form" method="POST">
     <div class="form-group">
@@ -103,7 +155,7 @@
         <label for="forecast-period">Período de Previsão (dias):</label>
         <input type="number" id="forecast-period" name="forecast-period" min="1" value="7" required>
     </div>
-    <p>Intervalo de Datas: <span id="min-date-display"></span> até <span id="max-date-display"></span></p>
+    <p id="row-data-limits">Intervalo de Datas: <span id="min-date-display"></span> até <span id="max-date-display"></span></p>
     <!--
     ##############################################################################################################################################################
     Unir execuções dos botões 'Criar Cluster' & 'Definir Regioes'
@@ -124,13 +176,12 @@
     </p>
   {% endif %}
 <div id="data-preview"></div>
-<div id="cluster-selection"
-     style="display: none; margin: 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
-    <h3>Selecione os Clusters:</h3>
+<div id="cluster-selection">
+    <h3 id="subtitulo">Selecione os Clusters:</h3>
     <form id="cluster-form"></form>
 </div>
-<div id="map" style="height: 400px; width: 100%; margin-top: 20px;"></div>
-<div id="plot-container" style="margin-top: 20px;"></div>
+<div id="map"></div>
+<div id="plot-container" style="margin: 5px;"></div>
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {

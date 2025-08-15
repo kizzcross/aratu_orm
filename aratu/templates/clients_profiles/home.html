@@ -3,13 +3,19 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-    <h1>Bem-vindo à Home!</h1>
+    <h1 id="titulo">Bem-vindo à Home!</h1>
     {% if user.is_staff %}
         <a href="{% url 'admin:index' %}">
             <button class="admin-button">Área de Administração</button>
         </a>
     {% endif %}
     <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #titulo {
+            margin: 5px;
+        }
         .admin-button {
             margin-right: 10px;
             padding: 10px 20px;
@@ -24,6 +30,16 @@
 
         .admin-button:hover {
             background-color: #0056b3;
+        }
+
+        .admin-button {
+            margin: 2px;
+            padding: 5px 10px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
         }
     </style>
 {% endblock %}
