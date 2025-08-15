@@ -73,6 +73,35 @@ def data(request):
 # Endpoint para obter limites de datas, cluisterizar e criar modelo
 def get_date_limits(request):
     try:
+        # Pega a menor e a maior data/hora no banco
+        date_limits = AirQualityData.objects.aggregate(
+            min_date=Min('measure_time'),
+            max_date=Max('measure_time')
+        )
+
+        min_dt = date_limits.get('min_date')
+        max_dt = date_limits.get('max_date')
+
+        # Se não há dados, retorna limites = False
+        if not min_dt or not max_dt:
+            return JsonResponse({
+                'limites': False,
+                'start_date': None,
+                'end_date': None
+            })
+
+        # Retorna datas no formato YYYY-MM-DD
+        return JsonResponse({
+            'limites': True,
+            'start_date': min_dt.date().isoformat(),
+            'end_date': max_dt.date().isoformat()
+        })
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+'''
+def get_date_limits(request):
+    try:
         # Obter datas brutas do banco
         date_limits = AirQualityData.objects.aggregate(
             min_date=Min('measure_time'),
@@ -92,7 +121,7 @@ def get_date_limits(request):
 
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-
+'''
 @login_required(login_url='/login/')
 #Funcao que executa com "Criar Cluster Geografico" no template "previsao.html"
 @permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
@@ -396,37 +425,166 @@ def train_model(request):
 @permission_required('clients_profiles.view_airqualitydata', raise_exception=False)
 def generate_heatmap(request):
     try:
-        pm_type = request.GET.get('pm_type', 'pm25m')
+        # 1. RECEBER E PROCESSAR MÚLTIPLOS TIPOS DE PM
+        # Recebe a string 'pm1m,pm10m' e a transforma em uma lista ['pm1m', 'pm10m']
+        pm_types_str = request.GET.get('pm_type', '')
+        if not pm_types_str:
+            return JsonResponse({'error': 'Nenhum tipo de PM foi selecionado.'}, status=400)
+        
+        pm_types = pm_types_str.split(',')
+        
+        start_date_str = request.GET.get('start_date')
+        end_date_str = request.GET.get('end_date')
+        
+        if not start_date_str or not end_date_str:
+            return JsonResponse({'error': 'Datas são obrigatórias'}, status=400)
+
+        # 2. VALIDAR CADA TIPO DE PM RECEBIDO
+        valid_pm_types = [
+            f.name for f in AirQualityData._meta.fields
+            if f.name.startswith('pm') and f.name.endswith('m')
+        ]
+        
+        for pm_type in pm_types:
+            if pm_type not in valid_pm_types:
+                return JsonResponse({
+                    'error': f'Tipo de PM inválido: "{pm_type}". Use: {", ".join(valid_pm_types)}'
+                }, status=400)
+
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str)
+        if not start_date or not end_date:
+            return JsonResponse({'error': 'Formato de data inválido'}, status=400)
+
+        # 3. MONTAR A QUERY PARA BUSCAR TODAS AS COLUNAS DE PM
+        # A query agora busca 'lat', 'lon' e todas as colunas de PM da lista
+        query_columns = ['lat', 'lon'] + pm_types
+        data = AirQualityData.objects.filter(
+            measure_time__date__gte=start_date,
+            measure_time__date__lte=end_date
+        ).values(*query_columns)
+
+        df = pd.DataFrame.from_records(data)
+        
+        # Remove linhas onde 'lat', 'lon' ou QUALQUER um dos PMs selecionados for nulo
+        df = df.dropna(subset=['lat', 'lon'] + pm_types)
+
+        if df.empty:
+            return JsonResponse({'data': []}, status=200)
+
+        # 4. SOMAR OS VALORES DOS TIPOS DE PM SELECIONADOS
+        # Esta é a lógica central: cria uma nova coluna 'value' que é a soma
+        # das colunas de PM selecionadas para cada linha.
+        df['value'] = df[pm_types].sum(axis=1)
+
+        # 5. ESTRUTURAR A RESPOSTA COM O VALOR SOMADO
+        # Selecionamos apenas as colunas que o frontend precisa
+        response_df = df[['lat', 'lon', 'value']]
+        data_list = response_df.to_dict('records')
+
+        return JsonResponse({'data': data_list}, status=200)
+
+    except Exception as e:
+        # É uma boa prática logar o erro no servidor para debugging
+        # import logging
+        # logging.error(f"Erro ao gerar heatmap: {e}")
+        return JsonResponse({'error': 'Ocorreu um erro interno no servidor.'}, status=500)
+
+'''
+def generate_heatmap(request):
+    try:
+        start_date_str = request.GET.get('start_date')
+        end_date_str = request.GET.get('end_date')
+        pm_type = request.GET.get('pm_type', 'pm25m')  # padrão
+
+        if not start_date_str or not end_date_str:
+            return JsonResponse({'error': 'Datas são obrigatórias'}, status=400)
+
+        # Obter campos válidos dinamicamente
+        valid_pm_types = [
+            f.name for f in AirQualityData._meta.fields
+            if f.name.startswith('pm') and f.name.endswith('m')
+        ]
+        if pm_type not in valid_pm_types:
+            return JsonResponse({
+                'error': f'Tipo de PM inválido. Use: {", ".join(valid_pm_types)}'
+            }, status=400)
+
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str)
+        if not start_date or not end_date:
+            return JsonResponse({'error': 'Formato de data inválido'}, status=400)
+
+        query_columns = ['lat', 'lon', pm_type]
+        data = AirQualityData.objects.filter(
+            measure_time__date__gte=start_date,
+            measure_time__date__lte=end_date
+        ).values(*query_columns)
+
+        df = pd.DataFrame.from_records(data)
+        df = df.dropna(subset=['lat', 'lon', pm_type])
+
+        if df.empty:
+            return JsonResponse({'data': []}, status=200)
+
+        data_list = [
+            {'lat': row['lat'], 'lon': row['lon'], 'value': row[pm_type]}
+            for _, row in df.iterrows()
+        ]
+
+        return JsonResponse({'data': data_list}, status=200)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def generate_heatmap(request):
+    try:
+        #pm_type = request.GET.get('pm_type', 'pm25m')
         start_date_str = request.GET.get('start_date')
         end_date_str = request.GET.get('end_date')
         #pm_type = request.GET.get('pm_type', 'pm25m')  # Padrão: 'pm25m'
         if not start_date_str or not end_date_str:
             return JsonResponse({'error': 'Datas são obrigatórias'}, status=400)
         # Verificar se o tipo de PM é válido
-        if pm_type not in VALID_PM_TYPES:
-            return JsonResponse({'error': f'Invalid PM type. Valid types are: {", ".join(VALID_PM_TYPES)}'})
-        try:
-            start_date = parse_date(start_date_str)
-            end_date = parse_date(end_date_str)
-        except (ValueError, TypeError):
+        #if pm_type not in VALID_PM_TYPES:
+        #    return JsonResponse({'error': f'Invalid PM type. Valid types are: {", ".join(VALID_PM_TYPES)}'})
+'''
+        #try:
+        #    start_date = parse_date(start_date_str)
+        #    end_date = parse_date(end_date_str)
+        #except (ValueError, TypeError):
+'''
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str)
+
+        if not start_date or not end_date:
             return JsonResponse({'error': 'Formato de data inválido'}, status=400)
         # Buscar os dados do banco de dados
         #data = AirQualityData.objects.values('lat', 'lon', pm_type)
+        pm_columns = ['pm1m', 'pm25m', 'pm5m', 'pm10m']
+        query_columns = ['lat', 'lon'] + pm_columns
+
         data = AirQualityData.objects.filter(
                 measure_time__date__gte=start_date,
                 measure_time__date__lte=end_date
-                ).values('lat', 'lon', pm_type)
+                ).values(*query_columns) # O '*' desempacota a lista de colunas
         
         # Converter os dados para um DataFrame
         df = pd.DataFrame.from_records(data)
         
         # Remover valores NaN em PM, latitude e longitude
-        df = df.dropna(subset=[pm_type, 'lat', 'lon'])
+        df = df.dropna(subset=['lat', 'lon'], inplace=True)
 
         # Verificar se há dados válidos
         if df.empty:
-            return JsonResponse({'error': 'No valid data to display. All selected PM values are NaN.'})
+            #return JsonResponse({'error': 'No valid data to display. All selected PM values are NaN.'})
+            return JsonResponse({'data': []}, status=200)
+        data_list = df.to_dict('records')
 
+        return JsonResponse({'data': data_list}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+#----------------------------daqui pra baixo comentar----------------------------------
         # Selecionar os dados de localização e valores
         locations = df[['lat', 'lon']].values.tolist()
         pm_values = df[pm_type].values.tolist()
@@ -453,6 +611,7 @@ def generate_heatmap(request):
 
     # Retornar o HTML do mapa como parte da resposta JSON
     return JsonResponse({'map_html': map_html})
+'''
 
 #---------------------------------------------------------------------------------------------------------------------------------------------
 def convert_ndarray_to_list(data):
