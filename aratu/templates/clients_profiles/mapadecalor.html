@@ -82,6 +82,8 @@
     const btn = document.getElementById('btn-heatmap');
     const infoMin = document.getElementById('min-date-display');
     const infoMax = document.getElementById('max-date-display');
+    const informationButton = document.getElementById('information-button');
+    const informationBox = document.getElementById('information-box');
 
     const isValidRange = () => {
       if (!s.value || !e.value) return false;
@@ -148,6 +150,16 @@
 
     // carrega limites assim que a página abre
     fetchDateLimits();
+
+        // Exibe caixa de texto com explicações das variaveis
+    informationButton.addEventListener('click', async () => {
+      if (informationBox.style.display === 'none' || informationBox.style.display === '') {
+        informationBox.style.display = 'block';
+      } else {
+        informationBox.style.display = 'none';
+      }
+    });
+    
   });
 
   async function generateHeatmap() {
