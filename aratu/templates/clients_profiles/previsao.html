@@ -420,10 +420,20 @@ async function fetchDateLimits() {
       alert('Regiões definidas com sucesso!');
       trainModelButton.style.display = 'inline-block';
 
+      const MIN_ZOOM = 2;    // limite de "zoom out" (menor = mais distante). ajuste conforme necessário
+      const MAX_ZOOM = 18;   // limite de zoom in
+
       // 2) Inicializa o mapa globalmente
-      window.trainedMap = L.map('map').setView([-15.7942, -47.8822], 5);
+      window.trainedMap = L.map('map', {
+        center: [-15.7942, -47.8822],
+        zoom: 5,
+        minZoom: MIN_ZOOM,
+        maxZoom: MAX_ZOOM,
+        worldCopyJump: false
+    }).setView([-15.7942, -47.8822], 5);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
+        attribution: '© OpenStreetMap contributors',
+        noWrap: true
       }).addTo(window.trainedMap);
 
       // 3) Monta checkboxes e marcadores
@@ -463,7 +473,11 @@ async function fetchDateLimits() {
 
       // 4) Ajusta bounds e força renderização
       const bounds = data2.coordinates.map(c => [c.latitude, c.longitude]);
+      const latlngBounds = L.latLngBounds(bounds);
+      const paddedBounds = latlngBounds.pad(10);
+      window.trainedMap.setMaxBounds(paddedBounds);
       window.trainedMap.fitBounds(bounds);
+      //window.trainedMap.fitBounds(latlngBounds, { padding: [2000, 2000] });
       setTimeout(() => window.trainedMap.invalidateSize(), 0);
     });
 

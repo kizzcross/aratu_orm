@@ -10,6 +10,119 @@
   #titulo {
     margin: 5px;
   }
+  .form-group {
+      margin-bottom: 5px;
+  }
+
+  #data-preview table {
+      border-collapse: collapse;
+      width: 100%;
+  }
+
+  #data-preview th, #data-preview td {
+      border: 1px solid #ddd;
+      padding: 8px;
+  }
+
+  #data-preview th {
+      background-color: #f2f2f2;
+      text-align: left;
+  }
+
+  button {
+      margin: 2px;
+      padding: 5px 10px;
+      border: none;
+      background-color: #007BFF;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+  }
+
+  button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+  }
+
+  button:hover:not(:disabled) {
+      background-color: #0056b3;
+  }
+
+  #data-preview {
+      margin-top: 5px;
+      padding: 5px;
+      border: 1px solid #ccc;
+      display: none;
+  }
+
+  #myChart {
+      max-height: fit-content;/*300px;*/
+      max-width: fit-content;
+  }
+
+  .chart {
+      margin: 5px;
+  }
+
+  .line {
+      fill: none;
+      stroke-width: 2;
+  }
+
+  .line-real {
+      stroke: steelblue;
+  }
+
+  .line-forecast {
+      stroke: orange;
+  }
+  .plote-container {
+    display: flex;
+    height: 100%;
+  }
+  #map {
+      min-height: 260px;
+      height: calc(100vh - 360px); /* Ajuste 300px conforme a altura dos elementos acima do mapa */
+      flex-grow: 1;
+      width: 100%;
+      margin: 5px;
+  }
+  #subtitulo {
+      margin: 5px;
+  }
+  #cluster-form {
+    display: flex;         /* Ativa o layout flexível */
+    flex-wrap: wrap;       /* Permite que os itens quebrem para a próxima linha */
+    gap: 3px 3px;        /* Adiciona espaçamento: 10px vertical, 20px horizontal */
+  }
+
+  #cluster-form label {
+    /* Define uma base de largura para cada item. */
+    /* O navegador tentará colocar o máximo de itens de 150px em cada linha. */
+    flex-basis: 110px; 
+    
+    /* Evita que os itens encolham demais */
+    flex-shrink: 0;
+    
+    /* Outras estilizações para deixar mais bonito */
+    padding: 2px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+  }
+  #cluster-selection {
+    display: none;
+    margin: 5px 0;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  #forecast-period {
+    width: 100px; /* Ajuste o valor como preferir. 100px é um bom começo. */
+  }
+  #row-data-limits {
+    margin: 5px;
+  }
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -192,11 +305,21 @@
         return;
       }
       rawData = jsonData.data;
+    
+      const MIN_ZOOM = 2;    // limite de "zoom out" (menor = mais distante). ajuste conforme necessário
+      const MAX_ZOOM = 18;   // limite de zoom in
 
       if (!map) {
-        map = L.map('map-container').setView([-15.7942, -47.8822], 5);
+        map = L.map('map-container', {
+          center: [-15.7942, -47.8822],
+          zoom: 5,
+          minZoom: MIN_ZOOM,
+          maxZoom: MAX_ZOOM,
+          worldCopyJump: false
+        }).setView([-15.7942, -47.8822], 5);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors'
+          attribution: '© OpenStreetMap contributors',
+          noWrap: true
         }).addTo(map);
       }
 
@@ -204,6 +327,11 @@
 
       const bounds = rawData.map(p => [p.lat, p.lon]);
       if (bounds.length > 0) {
+        //const bounds = data2.coordinates.map(c => [c.latitude, c.longitude]);
+        const latlngBounds = L.latLngBounds(bounds);
+        const paddedBounds = latlngBounds.pad(10);
+        map.setMaxBounds(paddedBounds);
+        map.fitBounds(bounds);
         map.fitBounds(bounds);
         setTimeout(() => map.invalidateSize(), 0);
       }
