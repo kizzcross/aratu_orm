@@ -80,12 +80,12 @@
     display: flex;
     height: 100%;
   }
-  #map {
-      min-height: 260px;
-      height: calc(100vh - 360px); /* Ajuste 300px conforme a altura dos elementos acima do mapa */
+  #map-container {
+      min-height: 255px;
+      height: calc(100vh - 376px); /* Ajuste 300px conforme a altura dos elementos acima do mapa */
       flex-grow: 1;
       width: 100%;
-      margin: 5px;
+      margin: 2px;
   }
   #subtitulo {
       margin: 5px;
@@ -123,6 +123,18 @@
   #row-data-limits {
     margin: 5px;
   }
+  fieldset {
+    width: 220px;
+    padding: 2px;
+  }
+  p {
+    margin: 2px;
+  }
+  #data-config {
+    display: flex;
+    align-items: center; /* Centraliza verticalmente os itens */
+    gap: 10px; /* Mantém o espaçamento entre os itens (se aplicável) */
+  }
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -131,15 +143,14 @@
 <h1 id="titulo">Air Quality Dashboard</h1>
 
 <div>
-  <h2>Importar Dados</h2>
+  <h2 id="subtitulo">Importar Dados</h2>
   <button onclick="importData()">Importar Dados de Qualidade do Ar</button>
 </div>
 
 <div>
-  <h2>Gerar Heatmap</h2>
-
+  <h2 id="subtitulo">Gerar Heatmap</h2>
+  <div id="data-config">
   {% if perms.clients_profiles.view_airqualitydata %}
-    <label for="pmType">Selecione o tipo de PM:</label>
     <fieldset id="pmType">
       <legend>Selecione o(s) tipo(s) de PM:</legend>
       <label><input type="checkbox" name="pmType" value="pm1m"> PM1.0 (Massa)</label><br>
@@ -147,8 +158,6 @@
       <label><input type="checkbox" name="pmType" value="pm4m"> PM4.0 (Massa)</label><br>
       <label><input type="checkbox" name="pmType" value="pm10m"> PM10 (Massa)</label>
     </fieldset>
-
-
     <div class="form-group">
       <label for="start-date">Data de Início:</label>
       <input type="date" id="start-date" name="start-date" required disabled>
@@ -159,6 +168,7 @@
        <span id="min-date-display">—</span> até 
        <span id="max-date-display">—</span>
     </p>
+  </div>
     <button id="btn-heatmap" onclick="generateHeatmap()" disabled>
       Gerar Heatmap
     </button>
@@ -178,7 +188,7 @@
   </div>
 </div>
 
-<div id="map-container" style="width:100%;height:600px;margin-top:20px;border:1px solid #ccc;">
+<div id="map-container">
   <!-- mapa será injetado aqui -->
 </div>
 </body>
