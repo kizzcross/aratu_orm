@@ -11,9 +11,13 @@
         body {
             font-family: Arial, sans-serif;
         }
+        
+        #titulo {
+            margin: 5px;
+        }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 5px;
         }
 
         #data-preview table {
@@ -32,8 +36,8 @@
         }
 
         button {
-            margin-right: 10px;
-            padding: 10px 20px;
+            margin: 2px;
+            padding: 5px 10px;
             border: none;
             background-color: #007BFF;
             color: white;
@@ -51,19 +55,19 @@
         }
 
         #data-preview {
-            margin-top: 20px;
-            padding: 10px;
+            margin-top: 5px;
+            padding: 5px;
             border: 1px solid #ccc;
             display: none;
         }
 
         #myChart {
-            max-height: 300px;
+            max-height: fit-content;/*300px;*/
             max-width: fit-content;
         }
 
         .chart {
-            margin-bottom: 40px;
+            margin: 5px;
         }
 
         .line {
@@ -78,6 +82,54 @@
         .line-forecast {
             stroke: orange;
         }
+        .plote-container {
+          display: flex;
+          height: 100%;
+        }
+        #map {
+            min-height: 260px;
+            height: calc(100vh - 360px); /* Ajuste 300px conforme a altura dos elementos acima do mapa */
+            flex-grow: 1;
+            width: 100%;
+            margin: 5px;
+        }
+        #subtitulo {
+            margin: 5px;
+        }
+        #cluster-form {
+          display: flex;         /* Ativa o layout flexível */
+          flex-wrap: wrap;       /* Permite que os itens quebrem para a próxima linha */
+          gap: 3px 3px;        /* Adiciona espaçamento: 10px vertical, 20px horizontal */
+        }
+
+        #cluster-form label {
+          /* Define uma base de largura para cada item. */
+          /* O navegador tentará colocar o máximo de itens de 150px em cada linha. */
+          flex-basis: 110px; 
+          
+          /* Evita que os itens encolham demais */
+          flex-shrink: 0;
+          
+          /* Outras estilizações para deixar mais bonito */
+          padding: 2px;
+          border: 1px solid #eee;
+          border-radius: 4px;
+          background-color: #f9f9f9;
+        }
+        #cluster-selection {
+          display: none;
+          margin: 5px 0;
+          padding: 5px;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+        }
+        #forecast-period {
+          width: 100px; /* Ajuste o valor como preferir. 100px é um bom começo. */
+        }
+        #row-data-limits {
+          margin: 5px;
+        }
+
     </style>
     <!-- Dependências do DataTables -->
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
@@ -92,8 +144,8 @@
     <!--<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>-->
 </head>
 <body>
-<h1>Página de Previsão</h1>
-
+<h1 id="titulo">Página de Previsão</h1>
+{% if perms.clients_profiles.view_airqualitydata %}
 <form id="date-form" method="POST">
     <div class="form-group">
         <label for="start-date">Data de Início:</label>
@@ -103,7 +155,7 @@
         <label for="forecast-period">Período de Previsão (dias):</label>
         <input type="number" id="forecast-period" name="forecast-period" min="1" value="7" required>
     </div>
-    <p>Intervalo de Datas: <span id="min-date-display"></span> até <span id="max-date-display"></span></p>
+    <p id="row-data-limits">Intervalo de Datas: <span id="min-date-display"></span> até <span id="max-date-display"></span></p>
     <!--
     ##############################################################################################################################################################
     Unir execuções dos botões 'Criar Cluster' & 'Definir Regioes'
@@ -112,282 +164,318 @@
     <button id="generate-cluster" type="button" disabled>Criar Cluster Geográfico</button>
     <!--<button id="define-regions" type="button" style="display: none;">Definir Regiões</button>-->
     <button id="train-model" type="button" style="display: none;"> Fazer Previsão</button>
+    <button id="information-button" type="button">?</button>
+    <div id="information-box" style="display: none; border: 2px solid #00000088; margin-top: 10px;">
+        <p id="info-interface">Variáveis da Interface:</p>
+        <ul id="info-variables">
+            <li>Data de Início: define a data inicial do intervalo a ser analisado.</li>
+            <li>Data de Fim: define a data final do intervalo a ser analisado.</li>
+            <li>Período de Previsão: define quantos dias serão previstos com base no modelo gerado.</li>
+            <li>Cluster Geográfico: define as regiões de previsão por meio do agrupamento de pontos de dados semelhantes.</li>
+        </ul>
+        <p id="info-forecast">Variáveis da Previsão:</p>
+        <ul id="info-variables">
+            <li>cluster: identifica a qual cluster geográfico a previsão corresponde.</li>
+            <li>pm: representa o valor previsto de material particulado.</li>
+            <li>temp: indica a temperatura prevista.</li>
+            <li>date: corresponde à data referente a cada previsão.</li>
+        </ul>
+    </div>
     <!--
     ##############################################################################################################################################################
     Add mensangem para quando não tiver previsão e usuario clicar em relatório
     ##############################################################################################################################################################
     -->
 </form>
-
+ {% else %}
+    <p class="text-danger">
+      Você não tem permissão para acessar esta página de previsão.
+    </p>
+  {% endif %}
 <div id="data-preview"></div>
-<div id="map" style="height: 400px; width: 100%; margin-top: 20px;"></div>
-<div id="cluster-selection"
-     style="display: none; margin: 15px 0; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
-    <h3>Selecione os Clusters:</h3>
+<div id="cluster-selection">
+    <h3 id="subtitulo">Selecione os Clusters:</h3>
     <form id="cluster-form"></form>
 </div>
-<div id="plot-container" style="margin-top: 20px;"></div>
-<!--<div id="plot-container" style="width: 95%; height: 600px; margin: auto; overflow: auto;">
-    <canvas id="myChart" width="50%" height="50%"></canvas>
-</div>-->
-
+<div id="map"></div>
+<div id="plot-container" style="margin: 5px;"></div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const startDateInput = document.getElementById('start-date');
-        const endDateInput = document.getElementById('end-date');
-        const forecastPeriodInput = document.getElementById('forecast-period');
-        const clusterButton = document.getElementById('generate-cluster');
-        //const defineRegionsButton = document.getElementById('define-regions');
-        const trainModelButton = document.getElementById('train-model');
-        const dataPreviewDiv = document.getElementById('data-preview');
+  document.addEventListener('DOMContentLoaded', () => {
+    const startDateInput = document.getElementById('start-date');
+    const endDateInput = document.getElementById('end-date');
+    const forecastPeriodInput = document.getElementById('forecast-period');
+    const clusterButton = document.getElementById('generate-cluster');
+    const trainModelButton = document.getElementById('train-model');
+    const informationButton = document.getElementById('information-button');
+    const informationBox = document.getElementById('information-box');
 
-        // Helper para CSRF
-        function getCSRFToken() {
-            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        }
+    // Helper para CSRF
+    function getCSRFToken() {
+      return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
 
-        // Atualiza o estado do botão de cluster
-        function toggleClusterButton() {
-            const startDate = new Date(startDateInput.value);
-            const endDate = new Date(endDateInput.value);
-            const forecastPeriod = parseInt(forecastPeriodInput.value);
+    // Reset completo da interface
+    function resetInterface() {
+      // 1) Remove mapa antigo
+      if (window.trainedMap) {
+        window.trainedMap.remove();
+        window.trainedMap = null;
+      }
 
-            const isStartDateValid = !isNaN(startDate.getTime());
-            const isEndDateValid = !isNaN(endDate.getTime());
-            const isForecastPeriodValid = !isNaN(forecastPeriod) && forecastPeriod > 0;
+      // 2) Limpa gráficos
+      const plotContainer = document.getElementById('plot-container');
+      if (plotContainer) plotContainer.innerHTML = '';
 
-            clusterButton.disabled = !(isStartDateValid && isEndDateValid && isForecastPeriodValid);
-        }
+      // 3) Limpa checkboxes de cluster
+      const clusterForm = document.getElementById('cluster-form');
+      if (clusterForm) clusterForm.innerHTML = '';
 
-        // Busca os limites de data da API
-        async function fetchDateLimits() {
-            try {
-                const response = await fetch('/date-limits/');
-                const data = await response.json();
+      // 4) Oculta seções
+      const clusterSelectionDiv = document.getElementById('cluster-selection');
+      if (clusterSelectionDiv) clusterSelectionDiv.style.display = 'none';
 
-                if (data.start_date && data.end_date) {
-                    let startDate = new Date(data.start_date);
-                    let endDate = new Date(data.end_date);
+      const dataPreviewDiv = document.getElementById('data-preview');
+      if (dataPreviewDiv) {
+        dataPreviewDiv.style.display = 'none';
+        dataPreviewDiv.innerHTML = '';
+      }
 
-                    if (isNaN(startDate) || isNaN(endDate)) return;
+      // 5) Oculta botão de previsão
+      trainModelButton.style.display = 'none';
+    }
 
-                    const formatDate = (date) => {
-                        const year = date.getFullYear();
-                        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                        const day = date.getDate().toString().padStart(2, '0');
-                        return `${year}-${month}-${day}`;
-                    };
+    // Habilita botão de cluster
+    function toggleClusterButton() {
+      const startDate = new Date(startDateInput.value);
+      const endDate = new Date(endDateInput.value);
+      const forecastPeriod = parseInt(forecastPeriodInput.value);
+      const valid = !isNaN(startDate) && !isNaN(endDate) && !isNaN(forecastPeriod)
+        && forecastPeriod > 0 && startDate < endDate;
+      clusterButton.disabled = !valid;
+    }
 
-                    startDate = formatDate(startDate);
-                    endDate = formatDate(endDate);
+    // Exibe caixa de texto com explicações das variaveis
+    informationButton.addEventListener('click', async () => {
+      if (informationBox.style.display === 'none' || informationBox.style.display === '') {
+        informationBox.style.display = 'block';
+      } else {
+        informationBox.style.display = 'none';
+      }
+    });
 
-                    startDateInput.min = startDate;
-                    startDateInput.max = endDate;
-                    endDateInput.min = startDate;
-                    endDateInput.max = endDate;
+    // Busca limites de data na API
+async function fetchDateLimits() {
+  try {
+    const resp = await fetch('/date-limits/');
+    const data = await resp.json();
 
-                    document.getElementById('min-date-display').textContent = startDate;
-                    document.getElementById('max-date-display').textContent = endDate;
-                }
-            } catch (error) {
-                console.error('Erro ao buscar limites de data:', error);
-            }
-        }
+    const startDateInput = document.getElementById('start-date');
+    const endDateInput   = document.getElementById('end-date');
+    const clusterButton  = document.getElementById('generate-cluster');
+    const infoMin        = document.getElementById('min-date-display');
+    const infoMax        = document.getElementById('max-date-display');
 
-        // Função para enviar requisições
-        async function sendRequest(url, method, payload = {}, timeout = 600000) {
+    // Remove aviso anterior, se existir
+    const oldAviso = document.getElementById('no-dates-msg');
+    if (oldAviso) oldAviso.remove();
 
-            //const controller = new AbortController();
-            let controller, id;
-            //const id = setTimeout(() => controller.abort(), timeout);
-            if (typeof timout === 'number'){
-                controller = new AbortController();
-                id = setTimeout(() => controller.abort(), timeout);
-            }
+    if (data.limites) {
+      // Só instancio as datas se houver limites válidos
+      const start = new Date(data.start_date);
+      const end   = new Date(data.end_date);
+      const fmt = d => d.toISOString().slice(0,10);
 
-            try {
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCSRFToken()
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify(payload),
-                    signal: controller?.signal
-                });
-                if (id) clearTimeout(id);
-                return await response.json();
-            } catch (error) {
-                if (id) clearTimeout(id);
-                console.error('Erro ao enviar requisição:', error);
-                throw error;
-            }
-        }
+      startDateInput.min = fmt(start);
+      startDateInput.max = fmt(end);
+      endDateInput.min   = fmt(start);
+      endDateInput.max   = fmt(end);
 
-        // Função para renderizar múltiplos gráficos
-        function renderCharts(data) {
-            console.log(data); // Verifique os dados aqui
-            const container = document.getElementById('plot-container');
-            //plotContainer.innerHTML = '';
+      infoMin.textContent = fmt(start);
+      infoMax.textContent = fmt(end);
 
-        }
+      startDateInput.disabled = false;
+      endDateInput.disabled   = false;
+      clusterButton.disabled  = true;  // permanece bloqueado até o usuário escolher datas válidas
+    } else {
+      // Sem dados no banco: desabilita tudo e mostra mensagem
+      startDateInput.disabled = true;
+      endDateInput.disabled   = true;
+      clusterButton.disabled  = true;
 
-        trainModelButton.addEventListener('click', async () => {
-            // Captura os clusters selecionados
-            const selectedClusters = Array.from(document.querySelectorAll('input[name="cluster"]:checked'))
-                .map(checkbox => parseInt(checkbox.value));  // Converte para número
-            // Envia os clusters selecionados para o back-end
-            const data = await sendRequest('/clients_profiles/train-model/', 'POST', {
+      infoMin.textContent = infoMax.textContent = '—';
+
+      const aviso = document.createElement('p');
+      aviso.id = 'no-dates-msg';
+      aviso.textContent = 'Nenhuma data disponível para previsão.';
+      aviso.style.color = 'red';
+      // Insere logo após o parágrafo de intervalo
+      infoMax.parentNode.appendChild(aviso);
+    }
+  } catch (err) {
+    console.error('Erro ao buscar limites:', err);
+  }
+}
+
+    // Função genérica de requisição
+    async function sendRequest(url, method, payload = {}) {
+      const resp = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify(payload)
+      });
+      return resp.json();
+    }
+
+    trainModelButton.addEventListener('click', async () => {
+        // Captura os clusters selecionados
+        const selectedClusters = Array.from(document.querySelectorAll('input[name="cluster"]:checked'))
+            .map(checkbox => parseInt(checkbox.value));  // Converte para número
+        // Envia os clusters selecionados para o back-end
+        /*
+        const data = await sendRequest('/clients_profiles/train-model/', 'POST', {
+            clusters: selectedClusters,
+            start_date: startDateInput.value,
+            end_date: endDateInput.value,
+            forecast_period: forecastPeriodInput.value
+        }, {
+            headers: {'Content-Type': 'application/json'}  // Certificando-se de que o tipo é JSON
+        });
+        */
+        const response = await fetch('/clients_profiles/train-model/', {
+            method: 'POST',
+            body: JSON.stringify({
                 clusters: selectedClusters,
                 start_date: startDateInput.value,
                 end_date: endDateInput.value,
                 forecast_period: forecastPeriodInput.value
-            }, {
-                headers: {'Content-Type': 'application/json'}  // Certificando-se de que o tipo é JSON
-            });
-            const response = await fetch('/clients_profiles/train-model/', {
-                method: 'POST',
-                body: JSON.stringify({
-                    clusters: selectedClusters,
-                    start_date: startDateInput.value,
-                    end_date: endDateInput.value,
-                    forecast_period: forecastPeriodInput.value
-                }),
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCSRFToken()
-                },
-            });
-            if (!response.ok) {
-                throw new Error(`Erro ao treinar modelo: ${response.statusText}`);
-            }
-            // Convertendo a resposta para blob (arquivo)
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-
-            // Criando um link para download
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'trained_models.csv';
-            document.body.appendChild(a);
-            a.click();
-            if (!response.ok) {
-                throw new Error(`Erro ao treinar modelo: ${response.statusText}`);
-            }
-            // Removendo o elemento após o download
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            console.log({response})
-            if (data.error) {
-                alert(data.error);
-                return;
-            }
-            // Verifica se houve erro no envio
-            if (sendResponse.error) {
-                alert(sendResponse.error);
-                return;
-            }
-            // Aguarda a resposta do back-end com o modelo treinado
-            const trainedModelData = await sendRequest('/clients_profiles/train-model/', 'GET');
-            // Verifica se houve erro ao receber os dados do modelo treinado
-            if (trainedModelData.error) {
-                alert(trainedModelData.error);
-                return;
-            }
-            alert(trainedModelData.message);  // Mostra a mensagem que o back-end retorna
-            console.log('Modelo Treinado:', trainedModelData); // Para depuração
-            // Renderiza os gráficos com os dados
-            renderCharts(trainedModelData.models);
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
         });
-        //----------------------------------------------
-        clusterButton.addEventListener('click', async () => {
-            const data = await sendRequest('/clients_profiles/create-cluster/', 'POST', {
-                start_date: startDateInput.value,
-                end_date: endDateInput.value,
-                forecast_period: forecastPeriodInput.value //Envia o período de previsão
-            });
-            data2 = await sendRequest('/clients_profiles/define-regions/', 'POST', {}, null);
-            console.log('resposta define-regions:', data2);
-            if (data2 && data2.coordinates)
-            {
-                alert('Regiões definidas com sucesso!');
-                trainModelButton.style.display = 'inline-block';
-                // Inicializa o mapa
-                const mapContainer = document.getElementById('map');
-                mapContainer.innerHTML = ''; // Limpa o mapa anterior, se houver
-                const map = L.map('map').setView([-15.7942, -47.8822], 5); // Centraliza o mapa no Brasil (pode ajustar)
-                // Adiciona o tile do OpenStreetMap
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap contributors'}).addTo(map);
-                // Definir cores para clusters diferentes
-                const colors = ['red', 'blue', 'green', 'orange', 'purple', 'cyan', 'magenta'];
-                // Encontra os clusters únicos
-                const uniqueClusters = [...new Set(data2.coordinates.map(coord => coord.cluster))];
-                // Adiciona marcadores para cada coordenada
-                data2.coordinates.forEach(coord => {
-                    const color = colors[coord.cluster % colors.length]; // Alterna as cores para clusters
-                    const marker = L.circleMarker([coord.latitude, coord.longitude], {
-                        radius: 8,
-                        fillColor: color,
-                        color: color,
-                        weight: 1,
-                        opacity: 1,
-                        fillOpacity: 0.7
-                    }).addTo(map);
-                    marker.bindTooltip(`Cluster: ${coord.cluster}<br>Lat: ${coord.latitude.toFixed(4)}<br>Lon: ${coord.longitude.toFixed(4)}`,
-                        {
-                            permanent: false,   // O tooltip aparece somente no hover
-                            direction: 'top',   // A posição do texto (pode ser 'top', 'right', 'bottom', 'left')
-                            offset: [0, -10],   // Distância entre o texto e o marcador
-                            opacity: 0.9        // Transparência do tooltip
-                        }
-                    );
-                    // Criar checkboxes para seleção de clusters
-                    const clusterForm = document.getElementById('cluster-form');
-                    clusterForm.innerHTML = ''; // Limpar antes de popular
-                    const clusterSelectionDiv = document.getElementById('cluster-selection');
-                    clusterSelectionDiv.style.display = 'block'; // Exibir a seleção de clusters
-                    uniqueClusters.forEach(cluster => {
-                        const label = document.createElement('label');
-                        label.style.display = 'block';
-                        label.innerHTML = `<input type="checkbox" name="cluster" value="${cluster}"> Cluster ${cluster}`;
-                        clusterForm.appendChild(label);
-                    });
+        if (!response.ok) {
+            throw new Error(`Erro ao treinar modelo: ${response.statusText}`);
+        }
+        // Convertendo a resposta para blob (arquivo)
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
 
-                    // Função para marcar o checkbox do cluster
-                    function markClusterCheckbox(clusterId) {
-                        const checkbox = document.querySelector(`input[name="cluster"][value="${clusterId}"]`);
-                        if (checkbox && !checkbox.checked) {
-                            checkbox.checked = true;
-                        }
-                    }
-
-                    // Evento de clique no marcador
-                    marker.on('click', () => {
-                        markClusterCheckbox(coord.cluster);
-                    });
-                    //marker.bindPopup(`Cluster: ${coord.cluster}<br>Lat: ${coord.latitude}<br>Lon: ${coord.longitude}`);
-                    document.getElementById('train-model').style.display = 'inline-block';
-                });
-
-                // Ajusta o mapa para mostrar todos os pontos
-                const bounds = data2.coordinates.map(coord => [coord.latitude, coord.longitude]);
-                map.fitBounds(bounds);
-            }
-            else
-            {
-                alert('Erro ao definir regiões.');
-            }
-        });
-        //----------------------------------------------
-        // Eventos
-        startDateInput.addEventListener('change', toggleClusterButton);
-        endDateInput.addEventListener('change', toggleClusterButton);
-        forecastPeriodInput.addEventListener('input', toggleClusterButton);
-        fetchDateLimits();
+        // Criando um link para download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'trained_models.csv';
+        document.body.appendChild(a);
+        a.click();
+        if (!response.ok) {
+            throw new Error(`Erro ao treinar modelo: ${response.statusText}`);
+        }
+        // Removendo o elemento após o download
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        console.log({response})
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+        // Verifica se houve erro no envio
+        if (sendResponse.error) {
+            alert(sendResponse.error);
+            return;
+        }
+        // Aguarda a resposta do back-end com o modelo treinado
+        const trainedModelData = await sendRequest('/clients_profiles/train-model/', 'GET');
+        // Verifica se houve erro ao receber os dados do modelo treinado
+        if (trainedModelData.error) {
+            alert(trainedModelData.error);
+            return;
+        }
+        alert(trainedModelData.message);  // Mostra a mensagem que o back-end retorna
+        console.log('Modelo Treinado:', trainedModelData); // Para depuração
+        // Renderiza os gráficos com os dados
+        renderCharts(trainedModelData.models);
     });
+
+    // Listener do botão de criar cluster
+    clusterButton.addEventListener('click', async () => {
+      resetInterface();
+
+      // 1) Cria clusters no back-end
+      await sendRequest('/clients_profiles/create-cluster/', 'POST', {
+        start_date: startDateInput.value,
+        end_date: endDateInput.value,
+        forecast_period: forecastPeriodInput.value
+      });
+      const data2 = await sendRequest('/clients_profiles/define-regions/', 'POST');
+
+      if (!data2 || !data2.coordinates) {
+        alert('Erro ao definir regiões.');
+        return;
+      }
+
+      alert('Regiões definidas com sucesso!');
+      trainModelButton.style.display = 'inline-block';
+
+      // 2) Inicializa o mapa globalmente
+      window.trainedMap = L.map('map').setView([-15.7942, -47.8822], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(window.trainedMap);
+
+      // 3) Monta checkboxes e marcadores
+      const colors = ['red','blue','green','orange','purple','cyan','magenta'];
+      const uniqueClusters = [...new Set(data2.coordinates.map(c => c.cluster))];
+      const clusterForm = document.getElementById('cluster-form');
+      clusterForm.innerHTML = '';
+      document.getElementById('cluster-selection').style.display = 'block';
+
+      // Prepara checkboxes
+      uniqueClusters.forEach(cluster => {
+        const lbl = document.createElement('label');
+        lbl.innerHTML = `<input type="checkbox" name="cluster" value="${cluster}"> Cluster ${cluster}`;
+        clusterForm.appendChild(lbl);
+      });
+
+      // Desenha marcadores
+      data2.coordinates.forEach(coord => {
+        const color = colors[coord.cluster % colors.length];
+        L.circleMarker([coord.latitude, coord.longitude], {
+          radius: 8,
+          fillColor: color,
+          color,
+          weight: 1,
+          opacity: 1,
+          fillOpacity: 0.7
+        })
+        .addTo(window.trainedMap)
+        .bindTooltip(
+          `Cluster: ${coord.cluster}<br>Lat: ${coord.latitude.toFixed(4)}<br>Lon: ${coord.longitude.toFixed(4)}`,
+          { direction: 'top', offset: [0,-10], opacity: 0.9 }
+        )
+        .on('click', () => {
+          document.querySelector(`input[name="cluster"][value="${coord.cluster}"]`).checked = true;
+        });
+      });
+
+      // 4) Ajusta bounds e força renderização
+      const bounds = data2.coordinates.map(c => [c.latitude, c.longitude]);
+      window.trainedMap.fitBounds(bounds);
+      setTimeout(() => window.trainedMap.invalidateSize(), 0);
+    });
+
+    // Inicialização
+    startDateInput.addEventListener('change', toggleClusterButton);
+    endDateInput.addEventListener('change', toggleClusterButton);
+    forecastPeriodInput.addEventListener('input', toggleClusterButton);
+    fetchDateLimits();
+  });
 </script>
+
+
 </body>
 </html>
 {% endblock %}

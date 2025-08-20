@@ -79,20 +79,28 @@ def data(request):
 # Endpoint para obter limites de datas, cluisterizar e criar modelo
 def get_date_limits(request):
     try:
-        # Obter datas brutas do banco
+        # Pega a menor e a maior data/hora no banco
         date_limits = AirQualityData.objects.aggregate(
             min_date=Min('measure_time'),
             max_date=Max('measure_time')
         )
 
-        # Converter para date objects
-        min_date = date_limits['min_date'].date() if date_limits['min_date'] else None
-        max_date = date_limits['max_date'].date() if date_limits['max_date'] else None
+        min_dt = date_limits.get('min_date')
+        max_dt = date_limits.get('max_date')
 
-        # Formatar para string ISO (YYYY-MM-DD)
+        # Se não há dados, retorna limites = False
+        if not min_dt or not max_dt:
+            return JsonResponse({
+                'limites': False,
+                'start_date': None,
+                'end_date': None
+            })
+
+        # Retorna datas no formato YYYY-MM-DD
         return JsonResponse({
-            'start_date': min_date.isoformat() if min_date else '',
-            'end_date': max_date.isoformat() if max_date else ''
+            'limites': True,
+            'start_date': min_dt.date().isoformat(),
+            'end_date': max_dt.date().isoformat()
         })
 
     except Exception as e:
@@ -179,45 +187,7 @@ def create_cluster(request):
             return JsonResponse({'error': f'Ocorreu um erro: {str(e)}'}, status=500)
     print("Método não permitido")  # Debug do método inválido
     return JsonResponse({'error': 'Método não permitido'}, status=405)
-"""
-def get_plot(request):
-    global db_heatmap
-    if db_heatmap is not None:
-        xk_heatmap = db_heatmap[['lat', 'lon']].values
-        y = db_heatmap['cluster'].values
-        latlon = db_heatmap[['lat', 'lon']].values
 
-        # Geração do gráfico
-        colors = ['#377eb8', '#ff7f00', '#4daf4a', '#f781bf', '#a65628', '#984ea3', '#999999', '#e41a1c', '#dede00']
-        df_plot = {
-            'latitude': latlon[:, 1],
-            'longitude': latlon[:, 0],
-            'cluster': y
-        }
-        fig = px.scatter(
-            df_plot,
-            x='latitude',
-            y='longitude',
-            color='cluster',
-            color_discrete_sequence=colors,
-            title='Clusterização',
-            width=800,
-            height=600
-        )
-        fig.update_layout(
-            plot_bgcolor='white',
-            paper_bgcolor='white',
-            font=dict(color='black'),
-            xaxis=dict(gridcolor='gray'),
-            yaxis=dict(gridcolor='gray')
-        )
-
-        # Serializa o gráfico para JSON e retorna ao frontend
-        graph_json = pio.to_json(fig)
-        return JsonResponse({'plot': graph_json})
-
-    return JsonResponse({'error': 'Nenhum dado disponível para plotar.'}, status=400)
-"""
 #Executa logo após "create_cluster" no template "previsao.html" e habilita "Fazer Previsão"
 @permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 # Endpoint para definir regiões
@@ -263,23 +233,6 @@ def define_regions(request):
         return JsonResponse(data, status=200)
         #return JsonResponse({'message': 'Regiões definidas com sucesso!'})
     return JsonResponse({'error': 'Método não permitido'}, status=405)
-
-# @permission_required('clients_profiles.add_airqualitydata', raise_exception=False)
-# def relatorio():
-#     ################################################################################################################################################################
-#     #para decidir:
-#     '''
-#     se (info de todos cluster):
-#         fazer predict de todos clustuers #dentro da propria func relatorio
-#     senao
-#         recebe resultado do train_model
-#     '''
-#     ################################################################################################################################################################
-#     #recebe dias previstos
-#     #recebe intervalo de dados do treino
-#     #recebe predição
-#     #recebe clusters
-#     return 0
 
 #Executa logo após "define_regions" no template "previsao.html"
 @permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
@@ -391,7 +344,6 @@ def train_model(request):
             print(f"Modelos treinados com sucesso! {models_results}")
             # guardar as infos
             # Aqui vamos retornar um csv com os dados
-            # Aqui vamos retornar um csv com os dados
             # clusters vao ser as colunas e cada linha vai ser uma data comecando da end_date ate end_date + forecast_period
             # Cada cluster vai ter 2 colunas, uma para pm e outra para temp
             df = pd.DataFrame()
@@ -418,63 +370,70 @@ def train_model(request):
 @permission_required('clients_profiles.view_airqualitydata', raise_exception=False)
 def generate_heatmap(request):
     try:
-        pm_type = request.GET.get('pm_type', 'pm25m')
+        # 1. RECEBER E PROCESSAR MÚLTIPLOS TIPOS DE PM
+        # Recebe a string 'pm1m,pm10m' e a transforma em uma lista ['pm1m', 'pm10m']
+        pm_types_str = request.GET.get('pm_type', '')
+        if not pm_types_str:
+            return JsonResponse({'error': 'Nenhum tipo de PM foi selecionado.'}, status=400)
+        
+        pm_types = pm_types_str.split(',')
+        
         start_date_str = request.GET.get('start_date')
         end_date_str = request.GET.get('end_date')
-        #pm_type = request.GET.get('pm_type', 'pm25m')  # Padrão: 'pm25m'
+        
         if not start_date_str or not end_date_str:
             return JsonResponse({'error': 'Datas são obrigatórias'}, status=400)
-        # Verificar se o tipo de PM é válido
-        if pm_type not in VALID_PM_TYPES:
-            return JsonResponse({'error': f'Invalid PM type. Valid types are: {", ".join(VALID_PM_TYPES)}'})
-        try:
-            start_date = parse_date(start_date_str)
-            end_date = parse_date(end_date_str)
-        except (ValueError, TypeError):
-            return JsonResponse({'error': 'Formato de data inválido'}, status=400)
-        # Buscar os dados do banco de dados
-        #data = AirQualityData.objects.values('lat', 'lon', pm_type)
-        data = AirQualityData.objects.filter(
-                measure_time__date__gte=start_date,
-                measure_time__date__lte=end_date
-                ).values('lat', 'lon', pm_type)
+
+        # 2. VALIDAR CADA TIPO DE PM RECEBIDO
+        valid_pm_types = [
+            f.name for f in AirQualityData._meta.fields
+            if f.name.startswith('pm') and f.name.endswith('m')
+        ]
         
-        # Converter os dados para um DataFrame
+        for pm_type in pm_types:
+            if pm_type not in valid_pm_types:
+                return JsonResponse({
+                    'error': f'Tipo de PM inválido: "{pm_type}". Use: {", ".join(valid_pm_types)}'
+                }, status=400)
+
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str)
+        if not start_date or not end_date:
+            return JsonResponse({'error': 'Formato de data inválido'}, status=400)
+
+        # 3. MONTAR A QUERY PARA BUSCAR TODAS AS COLUNAS DE PM
+        # A query agora busca 'lat', 'lon' e todas as colunas de PM da lista
+        query_columns = ['lat', 'lon'] + pm_types
+        data = AirQualityData.objects.filter(
+            measure_time__date__gte=start_date,
+            measure_time__date__lte=end_date
+        ).values(*query_columns)
+
         df = pd.DataFrame.from_records(data)
         
-        # Remover valores NaN em PM, latitude e longitude
-        df = df.dropna(subset=[pm_type, 'lat', 'lon'])
+        # Remove linhas onde 'lat', 'lon' ou QUALQUER um dos PMs selecionados for nulo
+        df = df.dropna(subset=['lat', 'lon'] + pm_types)
 
-        # Verificar se há dados válidos
         if df.empty:
-            return JsonResponse({'error': 'No valid data to display. All selected PM values are NaN.'})
+            return JsonResponse({'data': []}, status=200)
 
-        # Selecionar os dados de localização e valores
-        locations = df[['lat', 'lon']].values.tolist()
-        pm_values = df[pm_type].values.tolist()
+        # 4. SOMAR OS VALORES DOS TIPOS DE PM SELECIONADOS
+        # Esta é a lógica central: cria uma nova coluna 'value' que é a soma
+        # das colunas de PM selecionadas para cada linha.
+        df['value'] = df[pm_types].sum(axis=1)
 
-        # Configurar o mapa
-        center = [-20.27931919525688, -40.287294463682024]  # Ajuste para a localização desejada
-        m = folium.Map(
-            location=center,
-            zoom_start=12,
-            width='100%',
-            height='70%'
-        )
+        # 5. ESTRUTURAR A RESPOSTA COM O VALOR SOMADO
+        # Selecionamos apenas as colunas que o frontend precisa
+        response_df = df[['lat', 'lon', 'value']]
+        data_list = response_df.to_dict('records')
 
-        # Adicionar camada de calor
-        heat_data = [[loc[0], loc[1], pm] for loc, pm in zip(locations, pm_values)]
-        HeatMap(heat_data, max_intensity=100, radius=8).add_to(m)
+        return JsonResponse({'data': data_list}, status=200)
 
-        # Renderizar o mapa como HTML
-        map_html = m._repr_html_()
-
-    except PermissionDenied:
-        # Se o usuário não tiver permissão, retornamos um erro personalizado em JSON
-        return JsonResponse({'error': 'Você não tem permissão para gerar o heatmap!'}, status=403)
-
-    # Retornar o HTML do mapa como parte da resposta JSON
-    return JsonResponse({'map_html': map_html})
+    except Exception as e:
+        # É uma boa prática logar o erro no servidor para debugging
+        # import logging
+        # logging.error(f"Erro ao gerar heatmap: {e}")
+        return JsonResponse({'error': 'Ocorreu um erro interno no servidor.'}, status=500)
 
 #---------------------------------------------------------------------------------------------------------------------------------------------
 def convert_ndarray_to_list(data):
@@ -915,9 +874,7 @@ def insert(tree, value):                                    # Função para inse
 def model_singh(X,y):
 
     # Entrada -> X (dados de treino) / Saidas -> y (saidas de treino)
-
     # Clusterização dos dados de saída - Dados Y
-
     # Encontra a raiz da arvore
 
     Rg = y.max() - y.min()              # Calcula a faixa de valor dos dados
@@ -1429,34 +1386,3 @@ def graph(real, fore):
   plt.grid()                            # Adiciona uma grade ao grafico
   plt.title('Real x Predito')          # Titulo do grafico
   plt.legend(loc = 4)                   # Legenda do grafico
-
-"""
-        y_c = df_cluster['cluster'].tolist()
-        xk_c = df_cluster[['lat', 'lon']].astype(np.float64).values
-        ll_c = df_cluster[['lat', 'lon', 'total_pm']].astype(np.float64).values
-
-        clusters_plot(xk_c, y_c, ll_c, title = cp)
-
-        fig = plt.figure(figsize=(12,6))      # Tamanho da figura
-        ax1 = fig.add_subplot()               # Adiciona o grafico
-
-        ax1.plot(dates_p[1:], yp[0], label = 'Valores Previstos', linestyle = '-', color = 'orange')         # Plotagem do sinal
-
-        ax1.set_xlabel('Dias')                   # Nome do eixo x
-        ax1.set_ylabel('Particulado')                   # Nome do eixo y
-        plt.grid(axis='y', linestyle='--', alpha=0.7)
-        plt.title(f'Previsão do Nível de Particulados no Cluster {cp}')          # Titulo do grafico
-        plt.legend(loc = 2)                   # Legenda do grafico
-
-        # Exibindo o gráfico
-        plt.xticks(rotation=90)  # Rotaciona os rótulos das datas
-        plt.tight_layout()  # Ajusta o layout para não cortar nada
-        plt.show()
-        predict_cluster = yp[0]
-        predict_dates = dates_p[1:]
-        predict_clsuter = cp
-
-        predictions.append([predict_cluster, predict_dates, predict_clsuter])
-
-    return predictions
-        """
