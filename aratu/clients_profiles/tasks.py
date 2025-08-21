@@ -5,7 +5,7 @@ import pandas as pd
 from celery import shared_task
 from django.core.files.base import ContentFile
 from .models import AirQualityData  # ajuste pro seu modelo real
-from .views import model_singh, predict
+from .ml_utils import model_singh, predict
 from ..sensor.models import PredictedFile
 
 
