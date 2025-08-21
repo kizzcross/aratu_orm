@@ -1,8 +1,7 @@
 # app/tasks.py
 from celery import shared_task
-from .models import AirQualityData  # ajuste pro seu modelo real
+from .models import AirQualityData, PredictedFile  # ajuste pro seu modelo real
 from .ml_utils import model_singh, predict
-from ..sensor.models import PredictedFile
 
 
 @shared_task
