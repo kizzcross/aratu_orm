@@ -139,6 +139,12 @@ def create_cluster(request):
             
             db = pd.DataFrame.from_records(data)
             print(f"DataFrame criado com {len(db)} registros")  # Debug do DataFrame criado
+
+            # Verificando se o DataFrame está vazio
+            if db.empty:
+                print("DataFrame db_heatmap está vazio")
+                logging.warning("DataFrame db_heatmap está vazio")
+                return JsonResponse({'error': 'Nenhum dado encontrado para o intervalo fornecido.'}, status=404)
             
             db.rename(columns={
                 'measure_time': 'date',
@@ -151,12 +157,6 @@ def create_cluster(request):
 
             db_heatmap = db[['date','temp', 'umi', 'lat', 'lon', 'pm1', 'pm25', 'pm10', 'pts']]
             print(f"DataFrame para heatmap criado com {len(db_heatmap)} registros")  # Debug do db_heatmap
-
-            # Verificando se o DataFrame está vazio
-            if db_heatmap.empty:
-                print("DataFrame db_heatmap está vazio")
-                logging.warning("DataFrame db_heatmap está vazio")
-                return JsonResponse({'error': 'Nenhum dado encontrado para o intervalo fornecido'}, status=404)
 
             # Gerando HTML do cabeçalho e rodapé
             head_html = db_heatmap.to_html(index=False)

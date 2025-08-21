@@ -405,11 +405,17 @@ async function fetchDateLimits() {
       resetInterface();
 
       // 1) Cria clusters no back-end
-      await sendRequest('/clients_profiles/create-cluster/', 'POST', {
+      const data1 = await sendRequest('/clients_profiles/create-cluster/', 'POST', {
         start_date: startDateInput.value,
         end_date: endDateInput.value,
         forecast_period: forecastPeriodInput.value
       });
+
+      if (data1.error) {
+        alert(data1.error);
+        return;
+      }
+      
       const data2 = await sendRequest('/clients_profiles/define-regions/', 'POST');
 
       if (!data2 || !data2.coordinates) {
