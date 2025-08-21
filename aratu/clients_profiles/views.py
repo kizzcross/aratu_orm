@@ -4,7 +4,7 @@ from django.db.models import Min, Max
 import pandas as pd
 import folium
 from folium.plugins import HeatMap
-from sensor.models import AirQualityData  # Certifique-se de que o modelo está correto
+from sensor.models import AirQualityData, PredictedFile  # Certifique-se de que o modelo está correto
 #from clients_profiles.models import AirQualityMeter # Certifique-se de que o modelo está correto
 from django.contrib.auth.decorators import permission_required, login_required
 from django.core.exceptions import PermissionDenied
@@ -40,8 +40,6 @@ import plotly.io as pio
 from plotly.io import to_html
 from django.utils.dateparse import parse_date
 from django.core.cache import cache
-
-from ..sensor.models import PredictedFile
 
 db_heatmap = pd.DataFrame()
 #a ideia é salvar esse dataframe na sessao do usuario e excluir quando encerrar conexao
