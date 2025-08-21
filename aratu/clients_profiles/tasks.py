@@ -64,7 +64,6 @@ import pandas as pd
 import numpy as np
 from celery import shared_task
 from django.core.cache import cache
-from .models import PredictedFile
 import io, json
 from django.core.files.base import ContentFile
 
