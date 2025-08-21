@@ -1,7 +1,7 @@
 # app/tasks.py
 from celery import shared_task
 from .models import AirQualityData  # ajuste pro seu modelo real
-from .ml_utils import model_singh, predict
+from .ml_utils import model_singh, predict, clusters_maia
 from sensor.models import PredictedFile  # ajuste pro seu modelo real
 
 
@@ -67,7 +67,6 @@ from django.core.cache import cache
 import io, json
 from django.core.files.base import ContentFile
 
-from .views import clusters_maia  # ou mova clusters_maia para utils.py e importe daqui
 
 @shared_task
 def define_regions_task(user_id):
