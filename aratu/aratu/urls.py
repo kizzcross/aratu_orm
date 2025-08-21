@@ -21,6 +21,7 @@ from django.contrib.auth import views as auth_views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('clients_profiles/', include('clients_profiles.urls')),  # <-- fica só esse
+    path('', include('clients_profiles.urls')),  # <-- fica só esse
     path('login/', auth_views.LoginView.as_view(template_name='clients_profiles/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('sensor/', include('sensor.urls')),
