@@ -163,7 +163,7 @@
     -->
     <button id="generate-cluster" type="button" disabled>Criar Cluster Geográfico</button>
     <!--<button id="define-regions" type="button" style="display: none;">Definir Regiões</button>-->
-    <button id="train-model" type="button" style="display: none;"> Fazer Previsão</button>
+    <button id="train-model-a" type="button" style="display: none;"> Fazer Previsão</button>
     <button id="information-button" type="button">?</button>
     <div id="information-box" style="display: none; border: 2px solid #00000088; margin-top: 10px;">
         <p id="info-interface">Variáveis da Interface:</p>
@@ -206,7 +206,7 @@
     const endDateInput = document.getElementById('end-date');
     const forecastPeriodInput = document.getElementById('forecast-period');
     const clusterButton = document.getElementById('generate-cluster');
-    const trainModelButton = document.getElementById('train-model');
+    const trainModelButton = document.getElementById('train-model-a');
     const informationButton = document.getElementById('information-button');
     const informationBox = document.getElementById('information-box');
 
@@ -345,7 +345,7 @@ async function fetchDateLimits() {
             headers: {'Content-Type': 'application/json'}  // Certificando-se de que o tipo é JSON
         });
         */
-        const response = await fetch('/clients_profiles/train-model/', {
+        const response = await fetch('/clients_profiles/train-model-a/', {
             method: 'POST',
             body: JSON.stringify({
                 clusters: selectedClusters,
@@ -388,7 +388,7 @@ async function fetchDateLimits() {
             return;
         }
         // Aguarda a resposta do back-end com o modelo treinado
-        const trainedModelData = await sendRequest('/clients_profiles/train-model/', 'GET');
+        const trainedModelData = await sendRequest('/clients_profiles/train-model-a/', 'GET');
         // Verifica se houve erro ao receber os dados do modelo treinado
         if (trainedModelData.error) {
             alert(trainedModelData.error);
@@ -410,7 +410,7 @@ async function fetchDateLimits() {
         end_date: endDateInput.value,
         forecast_period: forecastPeriodInput.value
       });
-      const data2 = await sendRequest('/clients_profiles/define-regions/', 'POST');
+      const data2 = await sendRequest('/clients_profiles/define-regions-a/', 'POST');
 
       if (!data2 || !data2.coordinates) {
         alert('Erro ao definir regiões.');
