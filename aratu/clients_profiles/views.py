@@ -41,6 +41,8 @@ from plotly.io import to_html
 from django.utils.dateparse import parse_date
 from django.core.cache import cache
 
+from ..sensor.models import PredictedFile
+
 db_heatmap = pd.DataFrame()
 #a ideia é salvar esse dataframe na sessao do usuario e excluir quando encerrar conexao
 #pode ser salvo em cookies, cache ou banco de dados.
@@ -234,6 +236,21 @@ def define_regions(request):
         #return JsonResponse({'message': 'Regiões definidas com sucesso!'})
     return JsonResponse({'error': 'Método não permitido'}, status=405)
 
+
+# app/views.py
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import permission_required, login_required
+from django.http import JsonResponse
+from .tasks import define_regions_task
+
+@login_required(login_url='/login/')
+@permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
+@require_POST
+def define_regions_2(request):
+    task = define_regions_task.delay(request.user.id)
+    return JsonResponse({"message": "Definição de regiões iniciada", "task_id": task.id})
+
+
 #Executa logo após "define_regions" no template "previsao.html"
 @permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 # Endpoint para treinar modelo
@@ -365,6 +382,36 @@ def train_model(request):
             return JsonResponse({'error': 'Nenhum modelo foi treinado com sucesso.'}, status=400)
         #return JsonResponse({'message': 'Modelos treinados com sucesso!', 'models': trained_models_list})
     return JsonResponse({'error': 'Método não permitido'}, status=405)
+
+
+# app/views.py
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import permission_required
+import json
+from .tasks import train_models_task
+
+@permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
+@require_POST
+def train_model_2(request):
+    data = json.loads(request.body)
+    selected_clusters = [int(c) for c in data.get('clusters', [])]
+    forecast_period = int(data.get('forecast_period', 7))
+
+    if not selected_clusters:
+        return JsonResponse({'error': 'Nenhum cluster selecionado'}, status=400)
+
+    task = train_models_task.delay(selected_clusters, forecast_period)
+    return JsonResponse({'message': 'Treinamento iniciado', 'task_id': task.id})
+
+
+
+def list_predicted_files(request):
+    return render(request, "predicted_files_list.html", {
+        "files": PredictedFile.objects.order_by("-created_at")
+    })
+
+
 
 #gera heatmap no template "mapadecalor.html"
 @permission_required('clients_profiles.view_airqualitydata', raise_exception=False)

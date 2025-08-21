@@ -86,6 +86,16 @@ class BackupConfig(models.Model):
     max_db_size_mb = models.PositiveIntegerField(null=True, blank=True)  # optional trigger
     enabled = models.BooleanField(default=True)
 
+class PredictedFile(models.Model):
+    """
+    Modelo que vai guardar os arquivos de predição
+    """
+    file = models.FileField(upload_to='predicted_files/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'Predicted File - {self.created_at.strftime("%Y-%m-%d %H:%M:%S")}'
+
 
 # all models must be auditables
 auditlog.register(AirQualityMeter)

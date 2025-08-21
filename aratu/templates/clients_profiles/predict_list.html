@@ -1,0 +1,11 @@
+<!-- templates/predicted_files_list.html -->
+<h2>Arquivos de Predição</h2>
+<ul>
+  {% for f in files %}
+    <li>
+      <a href="{{ f.file.url }}">{{ f.file.name }}</a> - {{ f.created_at }}
+    </li>
+  {% empty %}
+    <li>Nenhum arquivo disponível</li>
+  {% endfor %}
+</ul>
