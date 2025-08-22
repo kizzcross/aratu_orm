@@ -72,6 +72,44 @@ class AirQualityData(models.Model):
         verbose_name = 'Air Quality Data'
         verbose_name_plural = 'Air Quality Data'
 
+#-----------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------
+from django.conf import settings
+import json
+
+try:
+    from django.db.models import JSONField
+except Exception:
+    # fallback: use TextField e armazene JSON serializado
+    class JSONField(models.TextField):
+        pass
+class RegionResult(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    # coordinates será um GeoJSON-like ou lista de polígonos, conforme seu retorno
+    coordinates = JSONField(null=True, blank=True)
+    status = models.CharField(max_length=32, default="PENDING")  # PENDING / SUCCESS / FAILURE
+    error = models.TextField(null=True, blank=True)
+
+    def set_coordinates(self, coords):
+        if isinstance(self.coordinates, str):
+            # se usou TextField fallback
+            self.coordinates = json.dumps(coords)
+        else:
+            self.coordinates = coords
+        self.status = "SUCCESS"
+        self.save()
+
+    def get_coordinates(self):
+        try:
+            if isinstance(self.coordinates, str):
+                return json.loads(self.coordinates)
+            return self.coordinates
+        except Exception:
+            return None
+#-----------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------
+
 
 # all models must be auditables
 auditlog.register(AirQualityMeter)

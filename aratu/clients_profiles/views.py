@@ -241,6 +241,51 @@ from django.contrib.auth.decorators import permission_required, login_required
 from django.http import JsonResponse
 from .tasks import define_regions_task
 
+#-----------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------
+from .models import RegionResult
+from celery.result import AsyncResult
+
+def task_status(request, task_id):
+    """
+    Retorna o estado da task Celery. Se SUCCESS e a task devolveu region_id, também inclui.
+    """
+    res = AsyncResult(task_id)
+    data = {"state": res.state}
+    try:
+        info = res.result  # pode bloquear se a task ainda não estiver pronta? AsyncResult.result é não-bloqueante
+    except Exception as e:
+        info = None
+
+    # tentar obter region_id se disponível no resultado
+    if res.state == "SUCCESS":
+        result = res.result or {}
+        # o nosso task retorna {"status":"SUCCESS", "region_id": id}
+        if isinstance(result, dict) and result.get("region_id"):
+            data["region_id"] = result["region_id"]
+    elif res.state == "FAILURE":
+        data["error"] = str(res.result) or "Task falhou"
+
+    return JsonResponse(data)
+
+def get_region_result(request, region_id):
+    """
+    Retorna as coordinates salvas no RegionResult (quando prontas).
+    """
+    try:
+        rr = RegionResult.objects.get(id=region_id, user=request.user)
+    except RegionResult.DoesNotExist:
+        return JsonResponse({"error": "Não encontrado"}, status=404)
+
+    if rr.status != "SUCCESS":
+        return JsonResponse({"status": rr.status, "error": rr.error}, status=202 if rr.status=="PENDING" else 400)
+
+    coords = rr.get_coordinates()
+    return JsonResponse({"coordinates": coords})
+
+#-----------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------
+
 @login_required(login_url='/login/')
 @permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 @require_POST

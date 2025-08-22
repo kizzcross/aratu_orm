@@ -265,57 +265,57 @@
     });
 
     // Busca limites de data na API
-async function fetchDateLimits() {
-  try {
-    const resp = await fetch('/date-limits/');
-    const data = await resp.json();
+    async function fetchDateLimits() {
+      try {
+        const resp = await fetch('/date-limits/');
+        const data = await resp.json();
 
-    const startDateInput = document.getElementById('start-date');
-    const endDateInput   = document.getElementById('end-date');
-    const clusterButton  = document.getElementById('generate-cluster');
-    const infoMin        = document.getElementById('min-date-display');
-    const infoMax        = document.getElementById('max-date-display');
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput   = document.getElementById('end-date');
+        const clusterButton  = document.getElementById('generate-cluster');
+        const infoMin        = document.getElementById('min-date-display');
+        const infoMax        = document.getElementById('max-date-display');
 
-    // Remove aviso anterior, se existir
-    const oldAviso = document.getElementById('no-dates-msg');
-    if (oldAviso) oldAviso.remove();
+        // Remove aviso anterior, se existir
+        const oldAviso = document.getElementById('no-dates-msg');
+        if (oldAviso) oldAviso.remove();
 
-    if (data.limites) {
-      // Só instancio as datas se houver limites válidos
-      const start = new Date(data.start_date);
-      const end   = new Date(data.end_date);
-      const fmt = d => d.toISOString().slice(0,10);
+        if (data.limites) {
+          // Só instancio as datas se houver limites válidos
+          const start = new Date(data.start_date);
+          const end   = new Date(data.end_date);
+          const fmt = d => d.toISOString().slice(0,10);
 
-      startDateInput.min = fmt(start);
-      startDateInput.max = fmt(end);
-      endDateInput.min   = fmt(start);
-      endDateInput.max   = fmt(end);
+          startDateInput.min = fmt(start);
+          startDateInput.max = fmt(end);
+          endDateInput.min   = fmt(start);
+          endDateInput.max   = fmt(end);
 
-      infoMin.textContent = fmt(start);
-      infoMax.textContent = fmt(end);
+          infoMin.textContent = fmt(start);
+          infoMax.textContent = fmt(end);
 
-      startDateInput.disabled = false;
-      endDateInput.disabled   = false;
-      clusterButton.disabled  = true;  // permanece bloqueado até o usuário escolher datas válidas
-    } else {
-      // Sem dados no banco: desabilita tudo e mostra mensagem
-      startDateInput.disabled = true;
-      endDateInput.disabled   = true;
-      clusterButton.disabled  = true;
+          startDateInput.disabled = false;
+          endDateInput.disabled   = false;
+          clusterButton.disabled  = true;  // permanece bloqueado até o usuário escolher datas válidas
+        } else {
+          // Sem dados no banco: desabilita tudo e mostra mensagem
+          startDateInput.disabled = true;
+          endDateInput.disabled   = true;
+          clusterButton.disabled  = true;
 
-      infoMin.textContent = infoMax.textContent = '—';
+          infoMin.textContent = infoMax.textContent = '—';
 
-      const aviso = document.createElement('p');
-      aviso.id = 'no-dates-msg';
-      aviso.textContent = 'Nenhuma data disponível para previsão.';
-      aviso.style.color = 'red';
-      // Insere logo após o parágrafo de intervalo
-      infoMax.parentNode.appendChild(aviso);
+          const aviso = document.createElement('p');
+          aviso.id = 'no-dates-msg';
+          aviso.textContent = 'Nenhuma data disponível para previsão.';
+          aviso.style.color = 'red';
+          // Insere logo após o parágrafo de intervalo
+          infoMax.parentNode.appendChild(aviso);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar limites:', err);
+      }
     }
-  } catch (err) {
-    console.error('Erro ao buscar limites:', err);
-  }
-}
 
     // Função genérica de requisição
     async function sendRequest(url, method, payload = {}) {
@@ -399,7 +399,203 @@ async function fetchDateLimits() {
         // Renderiza os gráficos com os dados
         renderCharts(trainedModelData.models);
     });
+    
+    function handleCoordinates(coords) {
+      // coords: array de objetos { latitude, longitude, cluster } (adicione mapeamento se seu backend usa lat/lon distintos)
+      if (!coords || !coords.length) {
+        alert('Sem coordenadas para desenhar.');
+        return;
+      }
 
+      // garantir formato: converter strings para números se necessário
+      coords = coords.map(c => ({
+        latitude: Number(c.latitude ?? c.lat ?? c.latitud ?? 0),
+        longitude: Number(c.longitude ?? c.lon ?? c.lng ?? c.long ?? 0),
+        cluster: Number(c.cluster ?? c.cluster_id ?? 0),
+        raw: c
+      }));
+
+      // Inicializa mapa se necessário (idempotente)
+      if (!window.trainedMap) {
+        window.trainedMap = L.map('map').setView([-15.7942, -47.8822], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(window.trainedMap);
+      }
+
+      // Limpar camada anterior (se existir)
+      if (window.clusterLayerGroup) {
+        window.clusterLayerGroup.clearLayers();
+      } else {
+        window.clusterLayerGroup = L.layerGroup().addTo(window.trainedMap);
+      }
+
+      // Prepara checkboxes
+      const colors = ['red','blue','green','orange','purple','cyan','magenta'];
+      const uniqueClusters = [...new Set(coords.map(c => c.cluster))].sort((a,b)=>a-b);
+
+      const clusterForm = document.getElementById('cluster-form');
+      clusterForm.innerHTML = '';
+      document.getElementById('cluster-selection').style.display = 'block';
+
+      uniqueClusters.forEach(cluster => {
+        const lbl = document.createElement('label');
+        lbl.style.display = 'inline-block';
+        lbl.style.marginRight = '8px';
+        lbl.innerHTML = `<input type="checkbox" name="cluster" value="${cluster}" checked> Cluster ${cluster}`;
+        clusterForm.appendChild(lbl);
+      });
+
+      // Armazenar markers por cluster para poder ligar/desligar pela checkbox
+      const markersByCluster = {};
+
+      coords.forEach(coord => {
+        // proteger contra coordenadas inválidas
+        if (!isFinite(coord.latitude) || !isFinite(coord.longitude)) return;
+
+        const color = colors[coord.cluster % colors.length];
+        const marker = L.circleMarker([coord.latitude, coord.longitude], {
+          radius: 8,
+          fillColor: color,
+          color,
+          weight: 1,
+          opacity: 1,
+          fillOpacity: 0.7
+        });
+
+        marker.bindTooltip(
+          `Cluster: ${coord.cluster}<br>Lat: ${coord.latitude.toFixed(4)}<br>Lon: ${coord.longitude.toFixed(4)}`,
+          { direction: 'top', offset: [0,-10], opacity: 0.9 }
+        );
+
+        // adicionar evento para selecionar checkbox correspondente
+        marker.on('click', () => {
+          const input = document.querySelector(`input[name="cluster"][value="${coord.cluster}"]`);
+          if (input) input.checked = true;
+        });
+
+        // adicionar ao layerGroup e ao índice por cluster
+        marker.addTo(window.clusterLayerGroup);
+        if (!markersByCluster[coord.cluster]) markersByCluster[coord.cluster] = [];
+        markersByCluster[coord.cluster].push(marker);
+      });
+
+      // Ajusta comportamento das checkboxes: mostrar/ocultar markers
+      clusterForm.querySelectorAll('input[name="cluster"]').forEach(input => {
+        input.addEventListener('change', (ev) => {
+          const val = Number(ev.target.value);
+          const visible = ev.target.checked;
+          const list = markersByCluster[val] || [];
+          list.forEach(m => {
+            if (visible) window.clusterLayerGroup.addLayer(m);
+            else window.clusterLayerGroup.removeLayer(m);
+          });
+        });
+      });
+
+      // Ajusta bounds e força renderização
+      const bounds = coords.map(c => [c.latitude, c.longitude]).filter(b => b[0] !== 0 || b[1] !== 0);
+      if (bounds.length === 1) {
+        window.trainedMap.setView(bounds[0], 13);
+      } else if (bounds.length > 1) {
+        window.trainedMap.fitBounds(bounds, { padding: [20, 20] });
+      }
+      setTimeout(() => window.trainedMap.invalidateSize(), 0);
+    }
+
+  async function pollTask(taskId, interval = 2000, timeout = 180000) {
+      const start = Date.now();
+      while (Date.now() - start < timeout) {
+        const status = await sendRequest(`/clients_profiles/task-status/${taskId}/`, 'GET');
+        if (!status) throw new Error('Erro ao verificar status da task');
+        if (status.state === 'SUCCESS') {
+          // espera que o backend retorne region_id no result (ou coordinates diretamente)
+          if (status.region_id) return { region_id: status.region_id };
+          if (status.coordinates) return { coordinates: status.coordinates };
+          // se não veio, ainda podemos checar result direto
+          return status;
+        }
+        if (status.state === 'FAILURE') {
+          throw new Error('Task falhou: ' + (status.error || JSON.stringify(status)));
+        }
+        // ainda PENDING/STARTED -> espera e re-tenta
+        await new Promise(r => setTimeout(r, interval));
+      }
+      throw new Error('Timeout aguardando task (poll)');
+    }
+
+    clusterButton.addEventListener('click', async () => {
+      resetInterface();
+
+      // prevenir múltiplos cliques
+      clusterButton.disabled = true;
+      try {
+        // 1) cria clusters (POST)
+        const createResp = await sendRequest('/clients_profiles/create-cluster/', 'POST', {
+          start_date: startDateInput.value,
+          end_date: endDateInput.value,
+          forecast_period: forecastPeriodInput.value
+        });
+
+        // opcional: checar createResp, mas você já disse que create_cluster funciona
+
+        // 2) dispara definição de regiões
+        const startResp = await sendRequest('/clients_profiles/define-regions-a/', 'POST');
+
+        if (!startResp) {
+          alert('Erro iniciando definição de regiões.');
+          return;
+        }
+
+        // Se o backend retornou coordinates diretamente (caso raro), aceita imediatamente
+        if (startResp.coordinates) {
+          handleCoordinates(startResp.coordinates);
+          return;
+        }
+
+        // Se backend retornou somente task_id -> polling
+        if (!startResp.task_id) {
+          alert('Resposta inesperada do servidor: sem task_id.');
+          return;
+        }
+
+        // Mostrar feedback ao usuário enquanto aguarda (spinner, texto, etc.)
+        showProcessingUI && showProcessingUI('Definindo regiões...');
+
+        const pollResult = await pollTask(startResp.task_id, 2000, 180000); // 3 minutos
+        // pollResult pode conter region_id ou coordinates
+        let coords = null;
+        if (pollResult.coordinates) coords = pollResult.coordinates;
+        else if (pollResult.region_id) {
+          // buscar resultado final
+          const res = await sendRequest(`/clients_profiles/region-result/${pollResult.region_id}/`, 'GET');
+          coords = res && res.coordinates ? res.coordinates : null;
+        } else {
+          // talvez o task retorne o objeto direto em res.result
+          if (pollResult.result && pollResult.result.coordinates) coords = pollResult.result.coordinates;
+        }
+
+        if (!coords || !coords.length) {
+          alert('Nenhuma região retornada pelo servidor.');
+          return;
+        }
+
+        // chama seu bloco original — modularizado
+        handleCoordinates(coords);
+
+        // sucesso visual
+        alert('Regiões definidas com sucesso!');
+        trainModelButton.style.display = 'inline-block';
+
+      } catch (err) {
+        console.error('Erro no fluxo de criação de clusters:', err);
+        alert('Erro ao definir regiões: ' + (err.message || err));
+      } finally {
+        hideProcessingUI && hideProcessingUI();
+        clusterButton.disabled = false;
+      }
+    });
+/*
     // Listener do botão de criar cluster
     clusterButton.addEventListener('click', async () => {
       resetInterface();
@@ -410,13 +606,36 @@ async function fetchDateLimits() {
         end_date: endDateInput.value,
         forecast_period: forecastPeriodInput.value
       });
-      const data2 = await sendRequest('/clients_profiles/define-regions-a/', 'POST');
+      //const data2 = await sendRequest('/clients_profiles/define-regions-a/', 'POST');
+      const startResp = await sendRequest('/clients_profiles/define-regions-a/', 'POST');
 
-      if (!data2 || !data2.coordinates) {
-        alert('Erro ao definir regiões.');
+      //if (!data2 || !data2.coordinates) {
+      //  alert('Erro ao definir regiões.');
+      //  return;
+      //}
+      if (!startResp) {
+        alert('Erro iniciando definição de regiões.');
         return;
       }
 
+      if (startResp.coordinates) {
+        handleCoordinates(startResp.coordinates);
+        return;
+      }
+      if (!startResp.task_id) {
+        alert('Resposta inesperada do servidor: sem task_id.');
+        return;
+      }
+
+      try {
+        // Poll até completar
+        const result = await pollTask(startResp.task_id, 2000, 180000); // 3min timeout
+        handleCoordinates(result.coordinates);
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao definir regiões: ' + err.message);
+      }
+      
       alert('Regiões definidas com sucesso!');
       trainModelButton.style.display = 'inline-block';
 
@@ -466,6 +685,7 @@ async function fetchDateLimits() {
       window.trainedMap.fitBounds(bounds);
       setTimeout(() => window.trainedMap.invalidateSize(), 0);
     });
+    */
 
     // Inicialização
     startDateInput.addEventListener('change', toggleClusterButton);

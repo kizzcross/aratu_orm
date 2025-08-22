@@ -34,5 +34,9 @@ urlpatterns = [
     path('define-regions-a/', define_regions_2, name='define_regions-a'),
     path('train-model/', train_model, name='train_model'),
     path('train-model-a/', train_model_2, name='train_model_a'),
+    #----------------------------------------------------------------------------------------------------
+    path('task-status/<str:task_id>/', views.task_status, name='task_status'),
+    path('region-result/<int:region_id>/', views.get_region_result, name='get_region_result'),
+    #----------------------------------------------------------------------------------------------------
     #path('clients_profiles/forecast/cluster_geografico/', views.cluster_geografico, name='cluster_geografico'),
 ]

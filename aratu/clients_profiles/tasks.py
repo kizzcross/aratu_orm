@@ -3,7 +3,58 @@ from celery import shared_task
 from .models import AirQualityData  # ajuste pro seu modelo real
 from .ml_utils import model_singh, predict, clusters_maia
 from sensor.models import PredictedFile  # ajuste pro seu modelo real
+#-----------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------
+from django.core.cache import cache
+from .models import RegionResult
+import json
+import logging
 
+logger = logging.getLogger(__name__)
+
+@shared_task(bind=True)
+def define_regions_task(self, user_id):
+    """
+    Pega o cache db_heatmap_{user_id}, roda o processamento (clustering),
+    salva o resultado em RegionResult e retorna {"region_id": id}.
+    """
+    cache_key = f"db_heatmap_{user_id}"
+    try:
+        raw = cache.get(cache_key)
+        if raw is None:
+            msg = "Dados não encontrados no cache. Certifique-se de usar cache compartilhado (redis)."
+            logger.error(msg)
+            # criar registro com erro para permitir troubleshooting via front
+            rr = RegionResult.objects.create(user_id=user_id, status="FAILURE", error=msg)
+            return {"status": "FAILURE", "region_id": rr.id, "error": msg}
+
+        # se você armazenou JSON no cache:
+        import pandas as pd
+        db_heatmap = pd.read_json(raw) if isinstance(raw, str) else pd.DataFrame.from_records(raw)
+
+        # --- Aqui vai sua lógica de clustering / define regions ---
+        # Preferível delegar para uma função já existente (ml_utils.define_regions)
+        # Exemplo genérico (substitua pela sua lógica):
+        def run_clustering(df):
+            # retornar lista de polígonos/centroids/ex.: [{"id":1,"coords":[...]}]
+            # -> substitua pela função real
+            coords = [{"id": 1, "coords": [[-43.0, -19.9], [-43.1, -19.9], [-43.1, -20.0]]}]
+            return coords
+
+        coordinates = run_clustering(db_heatmap)
+
+        rr = RegionResult.objects.create(user_id=user_id, status="SUCCESS")
+        rr.set_coordinates(coordinates)
+
+        # Retorna identificador pro front se quiser exibir logo no polling
+        return {"status": "SUCCESS", "region_id": rr.id}
+    except Exception as e:
+        logger.exception("Erro ao definir regiões")
+        rr = RegionResult.objects.create(user_id=user_id, status="FAILURE", error=str(e))
+        # opcional: re-raise para Celery registrar stacktrace
+        raise
+#-----------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------
 
 @shared_task
 def train_models_task(selected_clusters, forecast_period):
