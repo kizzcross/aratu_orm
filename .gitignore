@@ -5,6 +5,7 @@ venv/
 aratu/static/*
 aratu/*/__pycache__/*
 __pycache__/
+aratu/sensor/management/commands/__pycache__*
 *.pyc
 # Byte-compiled / optimized / DLL files
 __pycache__/
