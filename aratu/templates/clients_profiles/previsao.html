@@ -161,6 +161,9 @@
     Unir execuções dos botões 'Criar Cluster' & 'Definir Regioes'
     ##############################################################################################################################################################
     -->
+    <div id="processing-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; color: white; font-size: 1.5em;">
+    <p id="processing-message">Processando...</p>
+    </div>
     <button id="generate-cluster" type="button" disabled>Criar Cluster Geográfico</button>
     <!--<button id="define-regions" type="button" style="display: none;">Definir Regiões</button>-->
     <button id="train-model-a" type="button" style="display: none;"> Fazer Previsão</button>
@@ -210,6 +213,28 @@
     const informationButton = document.getElementById('information-button');
     const informationBox = document.getElementById('information-box');
 
+    const processingOverlay = document.getElementById('processing-overlay');
+    const processingMessage = document.getElementById('processing-message');
+
+    /**
+     * Mostra a UI de processamento com uma mensagem opcional.
+     * @param {string} [message='Processando...'] - A mensagem a ser exibida.
+     */
+    function showProcessingUI(message = 'Processando...') {
+      if (processingOverlay) {
+        processingMessage.textContent = message;
+        processingOverlay.style.display = 'flex'; // Usamos 'flex' para centralizar o conteúdo
+      }
+    }
+
+    /**
+     * Esconde a UI de processamento.
+     */
+    function hideProcessingUI() {
+      if (processingOverlay) {
+        processingOverlay.style.display = 'none';
+      }
+    }
     // Helper para CSRF
     function getCSRFToken() {
       return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
