@@ -341,7 +341,7 @@
         console.error('Erro ao buscar limites:', err);
       }
     }
-
+    /*
     // Função genérica de requisição
     async function sendRequest(url, method, payload = {}) {
       const resp = await fetch(url, {
@@ -353,6 +353,44 @@
         body: JSON.stringify(payload)
       });
       return resp.json();
+    }
+    */
+    async function sendRequest(url, method, payload = null) {
+      try {
+        const options = {
+          method: method.toUpperCase(),
+          headers: {
+            'Content-Type': 'application/json',
+            // A alteração está aqui: usando sua função original
+            'X-CSRFToken': getCSRFToken() 
+          }
+        };
+
+        // Adiciona o body somente se houver dados e o método não for GET ou HEAD
+        if (payload && options.method !== 'GET' && options.method !== 'HEAD') {
+          options.body = JSON.stringify(payload);
+        }
+
+        const resp = await fetch(url, options);
+
+        // Trata respostas de erro do servidor (ex: 404, 500)
+        if (!resp.ok) {
+          const errorData = await resp.json().catch(() => ({ message: `Erro HTTP: ${resp.status}` }));
+          throw new Error(errorData.message || 'Ocorreu um erro no servidor.');
+        }
+        
+        // Trata respostas que não têm conteúdo (ex: 204 No Content)
+        const contentLength = resp.headers.get('content-length');
+        if (contentLength && parseInt(contentLength, 10) > 0) {
+          return await resp.json(); // Só faz o parse se houver corpo na resposta
+        }
+        
+        return null; // Retorna null para respostas vazias
+
+      } catch (err) {
+        console.error(`Falha na requisição para ${url}:`, err);
+        throw err; // Re-lança o erro para que o bloco catch do seu event listener possa capturá-lo
+      }
     }
 
     trainModelButton.addEventListener('click', async () => {
@@ -528,26 +566,26 @@
       setTimeout(() => window.trainedMap.invalidateSize(), 0);
     }
 
-  async function pollTask(taskId, interval = 2000, timeout = 180000) {
-      const start = Date.now();
-      while (Date.now() - start < timeout) {
-        const status = await sendRequest(`/clients_profiles/task-status/${taskId}/`, 'GET');
-        if (!status) throw new Error('Erro ao verificar status da task');
-        if (status.state === 'SUCCESS') {
-          // espera que o backend retorne region_id no result (ou coordinates diretamente)
-          if (status.region_id) return { region_id: status.region_id };
-          if (status.coordinates) return { coordinates: status.coordinates };
-          // se não veio, ainda podemos checar result direto
-          return status;
+    async function pollTask(taskId, interval = 2000, timeout = 180000) {
+        const start = Date.now();
+        while (Date.now() - start < timeout) {
+          const status = await sendRequest(`/clients_profiles/task-status/${taskId}/`, 'GET');
+          if (!status) throw new Error('Erro ao verificar status da task');
+          if (status.state === 'SUCCESS') {
+            // espera que o backend retorne region_id no result (ou coordinates diretamente)
+            if (status.region_id) return { region_id: status.region_id };
+            if (status.coordinates) return { coordinates: status.coordinates };
+            // se não veio, ainda podemos checar result direto
+            return status;
+          }
+          if (status.state === 'FAILURE') {
+            throw new Error('Task falhou: ' + (status.error || JSON.stringify(status)));
+          }
+          // ainda PENDING/STARTED -> espera e re-tenta
+          await new Promise(r => setTimeout(r, interval));
         }
-        if (status.state === 'FAILURE') {
-          throw new Error('Task falhou: ' + (status.error || JSON.stringify(status)));
-        }
-        // ainda PENDING/STARTED -> espera e re-tenta
-        await new Promise(r => setTimeout(r, interval));
+        throw new Error('Timeout aguardando task (poll)');
       }
-      throw new Error('Timeout aguardando task (poll)');
-    }
 
     clusterButton.addEventListener('click', async () => {
       resetInterface();
