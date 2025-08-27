@@ -350,13 +350,38 @@
     }
   }
 
+  // function updateHeatmapLayer() {
+  //   const heatData = rawData.map(p => [p.lat, p.lon, p.value]);
+  //   if (heatLayer) {
+  //     map.removeLayer(heatLayer);
+  //   }
+  //   heatLayer = L.heatLayer(heatData, { radius: 25 }).addTo(map);
+  // }
+
   function updateHeatmapLayer() {
     const heatData = rawData.map(p => [p.lat, p.lon, p.value]);
     if (heatLayer) {
       map.removeLayer(heatLayer);
     }
     heatLayer = L.heatLayer(heatData, { radius: 25 }).addTo(map);
+
+    // adiciona marcadores indicando a concentração de particulados no mapa de calor
+    rawData.forEach(p => {
+      const circle = L.circleMarker([p.lat, p.lon], {
+        radius: 8,
+        fillColor: "transparent",
+        color: "transparent",
+        weight: 0,
+        fillOpacity: 0
+      }).addTo(map);
+
+      circle.bindTooltip(
+        `Concentração de Partículas: ${p.value.toFixed(2)}`,
+        { permanent: false, direction: "top" }
+      );
+    });
   }
+
 
   function importData() {
     fetch('/sensor/import/')
