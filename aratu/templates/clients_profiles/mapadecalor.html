@@ -350,14 +350,6 @@
     }
   }
 
-  // function updateHeatmapLayer() {
-  //   const heatData = rawData.map(p => [p.lat, p.lon, p.value]);
-  //   if (heatLayer) {
-  //     map.removeLayer(heatLayer);
-  //   }
-  //   heatLayer = L.heatLayer(heatData, { radius: 25 }).addTo(map);
-  // }
-
   function updateHeatmapLayer() {
     const heatData = rawData.map(p => [p.lat, p.lon, p.value]);
     if (heatLayer) {
