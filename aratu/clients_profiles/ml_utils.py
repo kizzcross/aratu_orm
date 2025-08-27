@@ -345,7 +345,7 @@ class EvolvingClustering:
         return dist
 
     def plot_micro_clusters(self, X):
-
+        import matplotlib.pyplot as plt
         micro_clusters = self.get_all_active_micro_clusters()
         ax = plt.gca()
 
