@@ -15,12 +15,13 @@ logger = logging.getLogger(__name__)
 #-----------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------------
 
-@shared_task
+
+"""
 def train_models_task(selected_clusters, forecast_period, user_id):
-    """
-    Treina modelos para os clusters selecionados usando dados armazenados no cache.
-    Retorna o ID do arquivo CSV gerado (PredictedFile).
-    """
+    
+    #Treina modelos para os clusters selecionados usando dados armazenados no cache.
+    #Retorna o ID do arquivo CSV gerado (PredictedFile).
+    
 
     # Recupera dados do cache
     db_json = cache.get(f'db_heatmap_{user_id}')
@@ -107,6 +108,7 @@ def train_models_task(selected_clusters, forecast_period, user_id):
     return {"file_id": pf.id}
 
 """
+@shared_task
 def train_models_task(selected_clusters, forecast_period, user_id):
     # Carrega dados do banco
     #qs = AirQualityData.objects.filter(cluster__in=selected_clusters).values(
@@ -145,8 +147,8 @@ def train_models_task(selected_clusters, forecast_period, user_id):
         cur_pm, cur_temp = X_pm[-1], X_temp[-1]
 
         for i in range(forecast_period):
-            pred_temp = predict([cur_temp], model_temp)[0]
-            pred_pm = predict([cur_pm, pred_temp], model_pm)[0]
+            pred_temp = predict(cur_temp, model_temp)[0]
+            pred_pm = predict(cur_pm, pred_temp, model_pm)[0]
             yp_pm.append(pred_pm)
             yp_temp.append(pred_temp)
             cur_pm, cur_temp = pred_pm, pred_temp
@@ -168,7 +170,7 @@ def train_models_task(selected_clusters, forecast_period, user_id):
     pf = PredictedFile.objects.create()
     pf.file.save("trained_models.csv", ContentFile(csv_buffer.getvalue()))
     return  {"file_id": pf.id}
-"""
+
 
 # app/tasks.py
 import pandas as pd
