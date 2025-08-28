@@ -110,12 +110,6 @@ def get_date_limits(request):
 #Funcao que executa com "Criar Cluster Geografico" no template "previsao.html"
 @permission_required('clients_profiles.change_airqualitydata', raise_exception=False)
 def create_cluster(request):
-    #global db_heatmap
-    #cache_key = f'db_heatmap_{request.user.id}'
-    #db_json = cache.get(cache_key)
-    #if not db_json:
-    #    return JsonResponse({'error': 'Dados expiraram. Refaça a criação de Clusters Geográficos'}, status = 400)
-    #db_heatmap = pd.read_json(db_json)
     if request.method == 'POST':
         try:
             print("Recebendo requisição POST")  # Debug inicial
@@ -173,13 +167,13 @@ def create_cluster(request):
             cache.set(cache_key, db_heatmap.to_json(orient='records'), timeout=900)
 
             # Gerando HTML do cabeçalho e rodapé
-            head_html = db_heatmap.to_html(index=False)
+            #head_html = db_heatmap.to_html(index=False)
             #tail_html = db_heatmap.tail().to_html(index=False)
             print("HTML gerado com sucesso")  # Debug da geração do HTML
 
             return JsonResponse({
-                'message': 'Cluster geográfico criado com sucesso!',
-                'head': head_html,
+                'message': 'Cluster geográfico criado com sucesso!'#,
+                #'head': head_html,
                 #'tail': tail_html
             })
         except Exception as e:
