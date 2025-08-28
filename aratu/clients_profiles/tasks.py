@@ -81,7 +81,9 @@ from django.core.files.base import ContentFile
 @shared_task
 # substitua a implementação atual por esta (na parte onde está a versão "original")
 @shared_task
-def define_regions_task(user_id):
+def define_regions_task(self, user_id):
+    task_id = self.request.id
+    rr = RegionResult.objects.create(user_id=user_id, task_id=task_id, status="STARTED")
     cache_key = f'db_heatmap_{user_id}'
     db_json = cache.get(cache_key)
     if not db_json:
@@ -117,7 +119,7 @@ def define_regions_task(user_id):
     ]
 
     # **cria um RegionResult e grava as coordinates** para que a view /region-result/<id>/ consiga recuperar
-    rr = RegionResult.objects.create(user_id=user_id, status="SUCCESS")
+    #rr = RegionResult.objects.create(user_id=user_id, status="SUCCESS")
     rr.set_coordinates(coordinates)
 
     # retorna o region_id (o polling / task_status espera isso)
