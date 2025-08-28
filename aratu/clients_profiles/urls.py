@@ -37,6 +37,7 @@ urlpatterns = [
     #----------------------------------------------------------------------------------------------------
     path('task-status/<str:task_id>/', views.task_status, name='task_status'),
     path('region-result/<int:region_id>/', views.get_region_result, name='get_region_result'),
+    path('download-trained-model/<int:file_id>/', views.download_trained_csv, name='download_trained_model')
     #----------------------------------------------------------------------------------------------------
     #path('clients_profiles/forecast/cluster_geografico/', views.cluster_geografico, name='cluster_geografico'),
 ]
