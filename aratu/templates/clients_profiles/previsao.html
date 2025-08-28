@@ -462,7 +462,122 @@
         // Renderiza os gráficos com os dados
         renderCharts(trainedModelData.models);
     });
-    
+    function handleCoordinates(coords) {
+      if (!coords || !coords.length) {
+          alert('Sem coordenadas para desenhar.');
+          return;
+      }
+
+      // Normaliza os dados
+      coords = coords.map(c => ({
+          latitude: Number(c.latitude ?? c.lat ?? 0),
+          longitude: Number(c.longitude ?? c.lon ?? 0),
+          cluster: Number(c.cluster ?? c.cluster_id ?? 0),
+          raw: c
+      }));
+
+      const MIN_ZOOM = 2;
+      const MAX_ZOOM = 18;
+
+      // Remove mapa antigo se existir, para recriação
+      if (window.trainedMap) {
+          window.trainedMap.remove();
+          window.trainedMap = null;
+      }
+
+      // Inicializa mapa
+      window.trainedMap = L.map('map', {
+          center: [-15.7942, -47.8822],
+          zoom: 5,
+          minZoom: MIN_ZOOM,
+          maxZoom: MAX_ZOOM,
+          worldCopyJump: false
+      }).setView([-15.7942, -47.8822], 5);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          noWrap: true
+      }).addTo(window.trainedMap);
+
+      // LayerGroup para clusters
+      if (window.clusterLayerGroup) {
+          window.clusterLayerGroup.clearLayers();
+      } else {
+          window.clusterLayerGroup = L.layerGroup().addTo(window.trainedMap);
+      }
+
+      const colors = ['red','blue','green','orange','purple','cyan','magenta'];
+      const uniqueClusters = [...new Set(coords.map(c => c.cluster))].sort((a,b)=>a-b);
+
+      // Monta checkboxes
+      const clusterForm = document.getElementById('cluster-form');
+      clusterForm.innerHTML = '';
+      document.getElementById('cluster-selection').style.display = 'block';
+
+      uniqueClusters.forEach(cluster => {
+          const lbl = document.createElement('label');
+          lbl.style.display = 'inline-block';
+          lbl.style.marginRight = '8px';
+          // Checkboxes inicialmente **não marcados** como no código antigo
+          lbl.innerHTML = `<input type="checkbox" name="cluster" value="${cluster}"> Cluster ${cluster}`;
+          clusterForm.appendChild(lbl);
+      });
+
+      // Cria marcadores
+      const markersByCluster = {};
+      coords.forEach(coord => {
+          if (!isFinite(coord.latitude) || !isFinite(coord.longitude)) return;
+
+          const color = colors[coord.cluster % colors.length];
+          const marker = L.circleMarker([coord.latitude, coord.longitude], {
+              radius: 8,
+              fillColor: color,
+              color,
+              weight: 1,
+              opacity: 1,
+              fillOpacity: 0.7
+          });
+
+          marker.bindTooltip(
+              `Cluster: ${coord.cluster}<br>Lat: ${coord.latitude.toFixed(4)}<br>Lon: ${coord.longitude.toFixed(4)}`,
+              { direction: 'top', offset: [0,-10], opacity: 0.9 }
+          );
+
+          marker.on('click', () => {
+              const input = document.querySelector(`input[name="cluster"][value="${coord.cluster}"]`);
+              if (input) input.checked = true;
+          });
+
+          marker.addTo(window.trainedMap);  // Adiciona diretamente como antes
+          if (!markersByCluster[coord.cluster]) markersByCluster[coord.cluster] = [];
+          markersByCluster[coord.cluster].push(marker);
+      });
+
+      // Evento para checkboxes (ligar/desligar clusters)
+      clusterForm.querySelectorAll('input[name="cluster"]').forEach(input => {
+          input.addEventListener('change', (ev) => {
+              const val = Number(ev.target.value);
+              const visible = ev.target.checked;
+              (markersByCluster[val] || []).forEach(m => {
+                  if (visible) window.trainedMap.addLayer(m);
+                  else window.trainedMap.removeLayer(m);
+              });
+          });
+      });
+
+      // Ajusta bounds e padding igual ao código antigo
+      const bounds = coords.map(c => [c.latitude, c.longitude]).filter(b => b[0] && b[1]);
+      if (bounds.length) {
+          const latlngBounds = L.latLngBounds(bounds);
+          const paddedBounds = latlngBounds.pad(10);  // Mantém padding antigo
+          window.trainedMap.setMaxBounds(paddedBounds);
+          window.trainedMap.fitBounds(bounds);
+      }
+
+      setTimeout(() => window.trainedMap.invalidateSize(), 0);
+  }
+  
+/*
     function handleCoordinates(coords) {
       if (!coords || !coords.length) {
         alert('Sem coordenadas para desenhar.');
@@ -566,7 +681,7 @@
 
       setTimeout(() => window.trainedMap.invalidateSize(), 0);
     }
-
+*/
     /*
     function handleCoordinates(coords) {
       // coords: array de objetos { latitude, longitude, cluster } (adicione mapeamento se seu backend usa lat/lon distintos)
