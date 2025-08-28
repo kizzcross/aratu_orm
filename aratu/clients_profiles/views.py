@@ -277,6 +277,11 @@ def get_region_result(request, region_id):
     coords = rr.get_coordinates()
     return JsonResponse({"coordinates": coords})
 
+def download_trained_csv(request, file_id):
+    pf = PredictedFile.objects.get(id=file_id)
+    response = HttpResponse(pf.file, content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="trained_models.csv"'
+    return response
 #-----------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------------
 
@@ -438,7 +443,7 @@ def train_model_2(request):
     if not selected_clusters:
         return JsonResponse({'error': 'Nenhum cluster selecionado'}, status=400)
 
-    task = train_models_task.delay(selected_clusters, forecast_period)
+    task = train_models_task.delay(selected_clusters, forecast_period, request.user.id)
     return JsonResponse({'message': 'Treinamento iniciado', 'task_id': task.id})
 
 
