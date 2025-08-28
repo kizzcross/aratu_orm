@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 #-----------------------------------------------------------------------------------------------
 
 
-"""
+@shared_task
 def train_models_task(selected_clusters, forecast_period, user_id):
     
     #Treina modelos para os clusters selecionados usando dados armazenados no cache.
@@ -53,25 +53,27 @@ def train_models_task(selected_clusters, forecast_period, user_id):
             continue
 
         # Converte para numpy arrays
-        X_pm = np.array(cluster_db['total_pm'], dtype=float)
-        X_temp = np.array(cluster_db['temp'], dtype=float)
+        X_pm_array = np.array(cluster_db['total_pm'], dtype=float)
+        X_temp_array = np.array(cluster_db['temp'], dtype=float)
 
-        if len(X_pm) < 2:
+        if len(X_pm_array) < 2:
             print(f"Dados insuficientes para o cluster {cluster}")
             continue
 
         # Criação dos modelos usando versão compatível com arrays
-        model_pm, _ = model_singh(X_pm, X_pm)
-        model_temp, _ = model_singh(X_temp, X_temp)
+        model_pm, _ = model_singh(X_pm_array, X_pm_array)
+        model_temp, _ = model_singh(X_temp_array, X_temp_array)
 
         # Previsão para o período solicitado
         yp_pm = []
         yp_temp = []
-        cur_pm, cur_temp = X_pm[-1], X_temp[-1]
+
+        cur_pm, cur_temp = X_pm_array[-1], X_temp_array[-1]
 
         for i in range(forecast_period):
-            pred_temp = predict([cur_temp], model_temp)[0]
-            pred_pm = predict([cur_pm, pred_temp], model_pm)[0]
+            # ✅ Entrada para predict deve ser uma lista de arrays
+            pred_temp = predict([np.array([cur_temp])], model_temp)[0]
+            pred_pm = predict([np.array([cur_pm]), np.array([pred_temp])], model_pm)[0]
 
             yp_pm.append(pred_pm)
             yp_temp.append(pred_temp)
@@ -106,6 +108,7 @@ def train_models_task(selected_clusters, forecast_period, user_id):
 
     # Retorna o ID do arquivo para o front-end baixar
     return {"file_id": pf.id}
+
 
 """
 @shared_task
@@ -170,7 +173,7 @@ def train_models_task(selected_clusters, forecast_period, user_id):
     pf = PredictedFile.objects.create()
     pf.file.save("trained_models.csv", ContentFile(csv_buffer.getvalue()))
     return  {"file_id": pf.id}
-
+"""
 
 # app/tasks.py
 import pandas as pd
