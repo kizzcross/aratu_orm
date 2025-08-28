@@ -77,10 +77,8 @@ from django.core.cache import cache
 import io, json
 from django.core.files.base import ContentFile
 
-
-@shared_task
 # substitua a implementação atual por esta (na parte onde está a versão "original")
-@shared_task
+@shared_task(bind=True)
 def define_regions_task(self, user_id):
     task_id = self.request.id
     rr = RegionResult.objects.create(user_id=user_id, task_id=task_id, status="STARTED")
@@ -121,6 +119,8 @@ def define_regions_task(self, user_id):
     # **cria um RegionResult e grava as coordinates** para que a view /region-result/<id>/ consiga recuperar
     #rr = RegionResult.objects.create(user_id=user_id, status="SUCCESS")
     rr.set_coordinates(coordinates)
+    rr.status = "SUCCESS"
+    rr.save(update_fields=["status"])
 
     # retorna o region_id (o polling / task_status espera isso)
     return {"status": "SUCCESS", "region_id": rr.id}
