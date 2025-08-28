@@ -84,6 +84,7 @@ except Exception:
     class JSONField(models.TextField):
         pass
 class RegionResult(models.Model):
+    task_id = models.CharField(max_length=255, null=True, blank=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     # coordinates será um GeoJSON-like ou lista de polígonos, conforme seu retorno
