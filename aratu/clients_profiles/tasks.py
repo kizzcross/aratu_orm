@@ -42,8 +42,10 @@ def train_models_task(selected_clusters, forecast_period, user_id):
         if cluster_db.empty:
             continue
 
-        X_pm = cluster_db['total_pm'].astype(float).values
-        X_temp = cluster_db['temp'].astype(float).values
+        X_pm = np.array(cluster_db['total_pm'], dtype=float)
+        X_temp = np.array(cluster_db['temp'], dtype=float)
+        #X_pm = cluster_db['total_pm'].astype(float).values
+        #X_temp = cluster_db['temp'].astype(float).values
         model_pm, _ = model_singh(X_pm, X_pm)
         model_temp, _ = model_singh(X_temp, X_temp)
 
