@@ -1,7 +1,7 @@
 # app/tasks.py
 from celery import shared_task
 from .models import AirQualityData  # ajuste pro seu modelo real
-from .ml_utils import model_singh, predict, clusters_maia
+from .ml_utils import model_singh, predict, clusters_maia, convert_ndarray_to_list
 from sensor.models import PredictedFile  # ajuste pro seu modelo real
 #-----------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------------
@@ -16,6 +16,97 @@ logger = logging.getLogger(__name__)
 #-----------------------------------------------------------------------------------------------
 
 @shared_task
+def train_models_task(selected_clusters, forecast_period, user_id):
+    """
+    Treina modelos para os clusters selecionados usando dados armazenados no cache.
+    Retorna o ID do arquivo CSV gerado (PredictedFile).
+    """
+
+    # Recupera dados do cache
+    db_json = cache.get(f'db_heatmap_{user_id}')
+    if not db_json:
+        raise ValueError("Dados expiraram. Refaça a criação de clusters/regiões")
+
+    db_heatmap = pd.read_json(db_json)
+
+    if db_heatmap.empty:
+        raise ValueError("Nenhum dado encontrado")
+
+    models_results = []
+    df_result = pd.DataFrame()
+    last_date = db_heatmap['date'].max()
+
+    for cluster in selected_clusters:
+        print(f"Processando o cluster: {cluster}")
+        cluster_db = db_heatmap[db_heatmap['cluster'] == cluster]
+
+        if cluster_db.empty:
+            print(f"Nenhum dado encontrado para o cluster {cluster}")
+            continue
+
+        # Verifica se colunas essenciais existem
+        required_columns = ['total_pm', 'temp']
+        missing_columns = [col for col in required_columns if col not in cluster_db.columns]
+        if missing_columns:
+            print(f"Colunas ausentes para o cluster {cluster}: {missing_columns}")
+            continue
+
+        # Converte para numpy arrays
+        X_pm = np.array(cluster_db['total_pm'], dtype=float)
+        X_temp = np.array(cluster_db['temp'], dtype=float)
+
+        if len(X_pm) < 2:
+            print(f"Dados insuficientes para o cluster {cluster}")
+            continue
+
+        # Criação dos modelos usando versão compatível com arrays
+        model_pm, _ = model_singh(X_pm, X_pm)
+        model_temp, _ = model_singh(X_temp, X_temp)
+
+        # Previsão para o período solicitado
+        yp_pm = []
+        yp_temp = []
+        cur_pm, cur_temp = X_pm[-1], X_temp[-1]
+
+        for i in range(forecast_period):
+            pred_temp = predict([cur_temp], model_temp)[0]
+            pred_pm = predict([cur_pm, pred_temp], model_pm)[0]
+
+            yp_pm.append(pred_pm)
+            yp_temp.append(pred_temp)
+            cur_pm, cur_temp = pred_pm, pred_temp
+
+            # Adiciona linha ao DataFrame final
+            df_result = pd.concat([
+                df_result,
+                pd.DataFrame([{
+                    'cluster': cluster,
+                    'pm': pred_pm,
+                    'temp': pred_temp,
+                    'date': last_date + pd.DateOffset(days=i + 1)
+                }])
+            ], ignore_index=True)
+
+        # Armazena resultados em lista (opcional, pode ser usado para debug)
+        models_results.append({
+            'cluster': cluster,
+            'forecast': yp_pm,
+            'temp': yp_temp
+        })
+
+    # Converte arrays em listas para consistência (se necessário)
+    models_results = convert_ndarray_to_list(models_results)
+
+    # Gera CSV em memória e salva como PredictedFile
+    csv_buffer = io.StringIO()
+    df_result.to_csv(csv_buffer, index=False)
+    pf = PredictedFile.objects.create()
+    pf.file.save("trained_models.csv", ContentFile(csv_buffer.getvalue()))
+
+    # Retorna o ID do arquivo para o front-end baixar
+    return {"file_id": pf.id}
+
+"""
 def train_models_task(selected_clusters, forecast_period, user_id):
     # Carrega dados do banco
     #qs = AirQualityData.objects.filter(cluster__in=selected_clusters).values(
@@ -77,7 +168,7 @@ def train_models_task(selected_clusters, forecast_period, user_id):
     pf = PredictedFile.objects.create()
     pf.file.save("trained_models.csv", ContentFile(csv_buffer.getvalue()))
     return  {"file_id": pf.id}
-
+"""
 
 # app/tasks.py
 import pandas as pd
