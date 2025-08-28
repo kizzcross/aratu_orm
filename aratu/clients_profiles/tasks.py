@@ -16,12 +16,20 @@ logger = logging.getLogger(__name__)
 #-----------------------------------------------------------------------------------------------
 
 @shared_task
-def train_models_task(selected_clusters, forecast_period):
+def train_models_task(selected_clusters, forecast_period, user_id):
     # Carrega dados do banco
-    qs = AirQualityData.objects.filter(cluster__in=selected_clusters).values(
-        'cluster', 'date', 'total_pm', 'temp'
-    ).order_by('date')
-    df_all = pd.DataFrame(list(qs))
+    #qs = AirQualityData.objects.filter(cluster__in=selected_clusters).values(
+    #    'cluster', 'date', 'total_pm', 'temp'
+    #).order_by('date')
+    #df_all = pd.DataFrame(list(qs))
+
+    db_json = cache.get(f'db_heatmap_{user_id}')
+    if not db_json:
+        raise ValueError("Dados expiraram. Refaça a criação de clusters/regiões")
+
+    df_all = pd.read_json(db_json)
+
+    # Filtrar apenas os clusters selecionados pelo usuário
 
     if df_all.empty:
         raise ValueError("Nenhum dado encontrado")
@@ -66,7 +74,7 @@ def train_models_task(selected_clusters, forecast_period):
 
     pf = PredictedFile.objects.create()
     pf.file.save("trained_models.csv", ContentFile(csv_buffer.getvalue()))
-    return pf.id
+    return  {"file_id": pf.id}
 
 
 # app/tasks.py
@@ -100,6 +108,8 @@ def define_regions_task(self, user_id):
     db_heatmap['total_pm'] = db_heatmap.get('pm1', 0) + db_heatmap.get('pm25', 0) + db_heatmap.get('pm10', 0)
     db_heatmap['cluster'] = y
 
+    cache_key = f'db_heatmap_{user_id}'
+    cache.set(cache_key, db_heatmap.to_json(orient='records'), timeout=900)
     # salvar csv em PredictedFile (opcional, mantenho comportamento anterior)
     csv_buffer = io.StringIO()
     db_heatmap.to_csv(csv_buffer, index=False)
