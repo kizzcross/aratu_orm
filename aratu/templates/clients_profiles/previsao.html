@@ -804,20 +804,19 @@
             if (!status) throw new Error('Erro ao verificar status da task');
 
             if (status.state === 'SUCCESS') {
-                // Quando a task terminou, faz o download do CSV
-                const response = await fetch(`/tasks/download/${taskId}/`); // rota que retorna CSV
-                if (!response.ok) throw new Error('Erro ao baixar CSV');
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'trained_models.csv';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                return; // download concluído
-            }
+            const fileId = status.result.file_id;  // <- pega o file_id do resultado da task
+            const response = await fetch(`/download-trained-model/${fileId}/`);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'trained_models.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            return; // download concluído
+        }
 
             if (status.state === 'FAILURE') {
                 throw new Error('Task falhou: ' + (status.error || JSON.stringify(status)));
