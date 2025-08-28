@@ -73,7 +73,9 @@ def train_models_task(selected_clusters, forecast_period, user_id):
         for i in range(forecast_period):
             # ✅ Entrada para predict deve ser uma lista de arrays
             pred_temp = predict(np.array([cur_temp]), model_temp)[0]
-            pred_pm = predict(np.array([cur_pm]), np.array([pred_temp]), model_pm)[0]
+            X_test_pm = np.array([cur_pm, pred_temp]).T
+            pred_pm = predict(X_test_pm, model_pm)[0]
+            #pred_pm = predict(np.array([cur_pm]), np.array([pred_temp]), model_pm)[0]
 
             yp_pm.append(pred_pm)
             yp_temp.append(pred_temp)
