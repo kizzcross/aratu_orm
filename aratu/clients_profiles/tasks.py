@@ -109,7 +109,7 @@ def train_models_task(selected_clusters, forecast_period, user_id):
     pf.file.save("trained_models.csv", ContentFile(csv_buffer.getvalue()))
 
     # Retorna o ID do arquivo para o front-end baixar
-    return {"file_id": pf.id}
+    return {"status": "SUCCESS", "file_id": pf.id}
 
 
 """
