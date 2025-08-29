@@ -247,18 +247,16 @@ def task_status(request, task_id):
     res = AsyncResult(task_id)
     data = {"state": res.state}
     try:
-        info = res.result  # pode bloquear se a task ainda não estiver pronta? AsyncResult.result é não-bloqueante
+        result = res.result  # pode bloquear se a task ainda não estiver pronta? AsyncResult.result é não-bloqueante
     except Exception as e:
-        info = None
+        result = None
 
     # tentar obter region_id se disponível no resultado
-    if res.state == "SUCCESS":
-        result = res.result or {}
-        # o nosso task retorna {"status":"SUCCESS", "region_id": id}
-        if isinstance(result, dict) and result.get("region_id"):
-            data["region_id"] = result["region_id"]
+    if res.state == "SUCCESS" and isinstance(result, dict):
+        # Adiciona tudo que a task retornou no dicionário
+        data.update(result)
     elif res.state == "FAILURE":
-        data["error"] = str(res.result) or "Task falhou"
+        data["error"] = str(result) or "Task falhou"
 
     return JsonResponse(data)
 
