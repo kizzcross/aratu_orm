@@ -804,7 +804,7 @@
             if (!status) throw new Error('Erro ao verificar status da task');
 
             if (status.state === 'SUCCESS') {
-            const fileId = status.result.file_id;  // <- pega o file_id do resultado da task
+            const fileId = status.file_id;  // <- pega o file_id do resultado da task
             const response = await fetch(`/download-trained-model/${fileId}/`);
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
