@@ -805,6 +805,7 @@
 
             if (status.state === 'SUCCESS') {
             const fileId = status.file_id;  // <- pega o file_id do resultado da task
+            console.log('Task CSV concluída, file_id:', fileId);
             const response = await fetch(`/download-trained-model/${fileId}/`);
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
