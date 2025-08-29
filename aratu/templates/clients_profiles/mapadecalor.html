@@ -11,7 +11,10 @@
     margin: 5px;
   }
   .form-group {
-      margin-bottom: 5px;
+      margin-bottom: 1px;
+      display: flex;
+      flex-direction: column; /* Empilha os itens verticalmente */
+      gap: 3px;
   }
 
   #data-preview table {
@@ -121,10 +124,12 @@
     width: 100px; /* Ajuste o valor como preferir. 100px é um bom começo. */
   }
   #row-data-limits {
-    margin: 5px;
+    margin: 3px;
+    align-items: center;
+    min-width: 205px;
   }
   fieldset {
-    width: 220px;
+    width: 211px;
     padding: 2px;
   }
   p {
@@ -133,7 +138,7 @@
   #data-config {
     display: flex;
     align-items: center; /* Centraliza verticalmente os itens */
-    gap: 10px; /* Mantém o espaçamento entre os itens (se aplicável) */
+    gap: 3px; /* Mantém o espaçamento entre os itens (se aplicável) */
   }
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -159,15 +164,20 @@
       <label><input type="checkbox" name="pmType" value="pm10m"> PM10 (Massa)</label>
     </fieldset>
     <div class="form-group">
-      <label for="start-date">Data de Início:</label>
-      <input type="date" id="start-date" name="start-date" required disabled>
-      <label for="end-date">Data de Fim:</label>
-      <input type="date" id="end-date" name="end-date" required disabled>
-    </div>
-    <p>Intervalo de Datas: 
+      <div id="row-data-limits">
+        <label for="start-date">Data de Início:</label>
+        <input type="date" id="start-date" name="start-date" required disabled>
+      </div>
+      <div id="row-data-limits">
+        <label for="end-date">Data de Fim:</label>
+        <input type="date" id="end-date" name="end-date" required disabled>
+      </div>
+      <p>Intervalo de Datas: 
        <span id="min-date-display">—</span> até 
        <span id="max-date-display">—</span>
-    </p>
+      </p>
+      <p>Dados selecionados no intervalo: <span id="selected-count">0</span></p>
+    </div>
   </div>
     <button id="btn-heatmap" onclick="generateHeatmap()" disabled>
       Gerar Heatmap
@@ -269,6 +279,7 @@
     // ao trocar o tipo de PM, refaz a busca (precisa novo "value" do backend)
     pm.addEventListener('change', () => {
       if (isValidRange()) generateHeatmap();
+      updateSelectedCount();
     });
 
     // carrega limites assim que a página abre
@@ -285,14 +296,16 @@
     
   });
 
-  async function generateHeatmap() {
+let markerGroup = null; // Grupo de circleMarkers
+
+async function generateHeatmap() {
     const pmType = document.getElementById('pmType').value;
     const startDate = document.getElementById('start-date').value;
     const endDate   = document.getElementById('end-date').value;
 
     if (!startDate || !endDate || new Date(startDate) > new Date(endDate)) {
-      alert('Verifique as datas selecionadas.');
-      return;
+        alert('Verifique as datas selecionadas.');
+        return;
     }
 
     const selectedTypes = Array.from(document.querySelectorAll('input[name="pmType"]:checked'))
@@ -307,72 +320,105 @@
     const url = `/clients_profiles/generate-heatmap/?start_date=${startDate}&end_date=${endDate}&pm_type=${pmParam}`;
 
     try {
-      const response = await fetch(url);
-      const jsonData = await response.json();
+        const response = await fetch(url);
+        const jsonData = await response.json();
 
-      if (jsonData.error) {
-        alert(jsonData.error);
-        return;
-      }
-      rawData = jsonData.data;
-    
-      const MIN_ZOOM = 2;    // limite de "zoom out" (menor = mais distante). ajuste conforme necessário
-      const MAX_ZOOM = 18;   // limite de zoom in
+        if (jsonData.error) {
+            alert(jsonData.error);
+            return;
+        }
 
-      if (!map) {
-        map = L.map('map-container', {
-          center: [-15.7942, -47.8822],
-          zoom: 5,
-          minZoom: MIN_ZOOM,
-          maxZoom: MAX_ZOOM,
-          worldCopyJump: false
-        }).setView([-15.7942, -47.8822], 5);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors',
-          noWrap: true
-        }).addTo(map);
-      }
+        rawData = jsonData.data;
+        document.getElementById('selected-count').textContent = rawData.length;
 
-      updateHeatmapLayer();
+        const MIN_ZOOM = 2;
+        const MAX_ZOOM = 18;
 
-      const bounds = rawData.map(p => [p.lat, p.lon]);
-      if (bounds.length > 0) {
-        //const bounds = data2.coordinates.map(c => [c.latitude, c.longitude]);
-        const latlngBounds = L.latLngBounds(bounds);
-        const paddedBounds = latlngBounds.pad(10);
-        map.setMaxBounds(paddedBounds);
-        map.fitBounds(bounds);
-        map.fitBounds(bounds);
-        setTimeout(() => map.invalidateSize(), 0);
-      }
+        if (!map) {
+            map = L.map('map-container', {
+                center: [-15.7942, -47.8822],
+                zoom: 5,
+                minZoom: MIN_ZOOM,
+                maxZoom: MAX_ZOOM,
+                worldCopyJump: false
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                noWrap: true
+            }).addTo(map);
+        }
+
+        updateHeatmapLayer();
+
+        const bounds = rawData.map(p => [p.lat, p.lon]);
+        if (bounds.length > 0) {
+            const latlngBounds = L.latLngBounds(bounds);
+            map.setMaxBounds(latlngBounds.pad(0.1));
+            map.fitBounds(latlngBounds.pad(0.1));
+        }
+
     } catch (error) {
-      alert('Erro ao buscar os dados do mapa de calor: ' + error);
+        alert('Erro ao buscar os dados do mapa de calor: ' + error);
     }
-  }
+}
 
-  function updateHeatmapLayer() {
+function updateHeatmapLayer() {
+    if (!rawData || rawData.length === 0) return;
+
     const heatData = rawData.map(p => [p.lat, p.lon, p.value]);
+
+    // Atualiza heatLayer
     if (heatLayer) {
-      map.removeLayer(heatLayer);
+        heatLayer.setLatLngs(heatData);
+    } else {
+        heatLayer = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 18 }).addTo(map);
     }
-    heatLayer = L.heatLayer(heatData, { radius: 25 }).addTo(map);
 
-    // adiciona marcadores indicando a concentração de particulados no mapa de calor
+    // Atualiza os circleMarkers usando um layerGroup
+    if (!markerGroup) {
+        markerGroup = L.layerGroup().addTo(map);
+    } else {
+        markerGroup.clearLayers(); // remove markers antigos
+    }
+
+    // Adiciona markers novos
     rawData.forEach(p => {
-      const circle = L.circleMarker([p.lat, p.lon], {
-        radius: 8,
-        fillColor: "transparent",
-        color: "transparent",
-        weight: 0,
-        fillOpacity: 0
-      }).addTo(map);
+        const circle = L.circleMarker([p.lat, p.lon], {
+            radius: 5,             // menor tamanho melhora performance
+            fillColor: 'transparent',
+            color: 'transparent',
+            weight: 0,
+            fillOpacity: 0
+        });
 
-      circle.bindTooltip(
-        `Concentração de Partículas: ${p.value.toFixed(2)}`,
-        { permanent: false, direction: "top" }
-      );
+        circle.bindTooltip(`Concentração de Partículas: ${p.value.toFixed(2)}`, {
+            permanent: false,
+            direction: 'top'
+        });
+
+        markerGroup.addLayer(circle);
     });
-  }
+}
+
+function updateSelectedCount() {
+    const selectedTypes = Array.from(document.querySelectorAll('input[name="pmType"]:checked'))
+                               .map(cb => cb.value); // ['pm1m', 'pm25m']
+
+    if (!rawData.length || !selectedTypes.length) {
+        document.getElementById('selected-count').textContent = 0;
+        return;
+    }
+
+    // Conta linhas que têm pelo menos um PM selecionado
+    const count = rawData.filter(row => 
+        selectedTypes.some(pm => row[pm] !== undefined && row[pm] !== null)
+    ).length;
+
+    document.getElementById('selected-count').textContent = count;
+}
+
+document.querySelectorAll('input[name="pmType"]').forEach(cb => cb.addEventListener('change', updateSelectedCount));
 
 
   function importData() {
