@@ -9,12 +9,136 @@
   }
   #titulo {
     margin: 5px;
-  }#map-container{
-    min-height: 260px;
-    height: calc(100vh - 360px); /* Ajuste 300px conforme a altura dos elementos acima do mapa */
-    flex-grow: 1;
-    width: 100%;
-    margin: 5px;
+  }
+  .form-group {
+      margin-bottom: 1px;
+      display: flex;
+      flex-direction: column; /* Empilha os itens verticalmente */
+      gap: 3px;
+  }
+
+  #data-preview table {
+      border-collapse: collapse;
+      width: 100%;
+  }
+
+  #data-preview th, #data-preview td {
+      border: 1px solid #ddd;
+      padding: 8px;
+  }
+
+  #data-preview th {
+      background-color: #f2f2f2;
+      text-align: left;
+  }
+
+  button {
+      margin: 2px;
+      padding: 5px 10px;
+      border: none;
+      background-color: #007BFF;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+  }
+
+  button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+  }
+
+  button:hover:not(:disabled) {
+      background-color: #0056b3;
+  }
+
+  #data-preview {
+      margin-top: 5px;
+      padding: 5px;
+      border: 1px solid #ccc;
+      display: none;
+  }
+
+  #myChart {
+      max-height: fit-content;/*300px;*/
+      max-width: fit-content;
+  }
+
+  .chart {
+      margin: 5px;
+  }
+
+  .line {
+      fill: none;
+      stroke-width: 2;
+  }
+
+  .line-real {
+      stroke: steelblue;
+  }
+
+  .line-forecast {
+      stroke: orange;
+  }
+  .plote-container {
+    display: flex;
+    height: 100%;
+  }
+  #map-container {
+      min-height: 255px;
+      height: calc(100vh - 376px); /* Ajuste 300px conforme a altura dos elementos acima do mapa */
+      flex-grow: 1;
+      width: 100%;
+      margin: 2px;
+  }
+  #subtitulo {
+      margin: 5px;
+  }
+  #cluster-form {
+    display: flex;         /* Ativa o layout flexível */
+    flex-wrap: wrap;       /* Permite que os itens quebrem para a próxima linha */
+    gap: 3px 3px;        /* Adiciona espaçamento: 10px vertical, 20px horizontal */
+  }
+
+  #cluster-form label {
+    /* Define uma base de largura para cada item. */
+    /* O navegador tentará colocar o máximo de itens de 150px em cada linha. */
+    flex-basis: 110px; 
+    
+    /* Evita que os itens encolham demais */
+    flex-shrink: 0;
+    
+    /* Outras estilizações para deixar mais bonito */
+    padding: 2px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+  }
+  #cluster-selection {
+    display: none;
+    margin: 5px 0;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  #forecast-period {
+    width: 100px; /* Ajuste o valor como preferir. 100px é um bom começo. */
+  }
+  #row-data-limits {
+    margin: 3px;
+    align-items: center;
+    min-width: 205px;
+  }
+  fieldset {
+    width: 211px;
+    padding: 2px;
+  }
+  p {
+    margin: 2px;
+  }
+  #data-config {
+    display: flex;
+    align-items: center; /* Centraliza verticalmente os itens */
+    gap: 3px; /* Mantém o espaçamento entre os itens (se aplicável) */
   }
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -24,15 +148,14 @@
 <h1 id="titulo">Air Quality Dashboard</h1>
 
 <div>
-  <h2>Importar Dados</h2>
+  <h2 id="subtitulo">Importar Dados</h2>
   <button onclick="importData()">Importar Dados de Qualidade do Ar</button>
 </div>
 
 <div>
-  <h2>Gerar Heatmap</h2>
-
+  <h2 id="subtitulo">Gerar Heatmap</h2>
+  <div id="data-config">
   {% if perms.clients_profiles.view_airqualitydata %}
-    <label for="pmType">Selecione o tipo de PM:</label>
     <fieldset id="pmType">
       <legend>Selecione o(s) tipo(s) de PM:</legend>
       <label><input type="checkbox" name="pmType" value="pm1m"> PM1.0 (Massa)</label><br>
@@ -40,18 +163,22 @@
       <label><input type="checkbox" name="pmType" value="pm4m"> PM4.0 (Massa)</label><br>
       <label><input type="checkbox" name="pmType" value="pm10m"> PM10 (Massa)</label>
     </fieldset>
-
-
     <div class="form-group">
-      <label for="start-date">Data de Início:</label>
-      <input type="date" id="start-date" name="start-date" required disabled>
-      <label for="end-date">Data de Fim:</label>
-      <input type="date" id="end-date" name="end-date" required disabled>
-    </div>
-    <p>Intervalo de Datas: 
+      <div id="row-data-limits">
+        <label for="start-date">Data de Início:</label>
+        <input type="date" id="start-date" name="start-date" required disabled>
+      </div>
+      <div id="row-data-limits">
+        <label for="end-date">Data de Fim:</label>
+        <input type="date" id="end-date" name="end-date" required disabled>
+      </div>
+      <p>Intervalo de Datas: 
        <span id="min-date-display">—</span> até 
        <span id="max-date-display">—</span>
-    </p>
+      </p>
+      <p>Dados selecionados no intervalo: <span id="selected-count">0</span></p>
+    </div>
+  </div>
     <button id="btn-heatmap" onclick="generateHeatmap()" disabled>
       Gerar Heatmap
     </button>
@@ -152,6 +279,7 @@
     // ao trocar o tipo de PM, refaz a busca (precisa novo "value" do backend)
     pm.addEventListener('change', () => {
       if (isValidRange()) generateHeatmap();
+      updateSelectedCount();
     });
 
     // carrega limites assim que a página abre
@@ -168,14 +296,16 @@
     
   });
 
-  async function generateHeatmap() {
+let markerGroup = null; // Grupo de circleMarkers
+
+async function generateHeatmap() {
     const pmType = document.getElementById('pmType').value;
     const startDate = document.getElementById('start-date').value;
     const endDate   = document.getElementById('end-date').value;
 
     if (!startDate || !endDate || new Date(startDate) > new Date(endDate)) {
-      alert('Verifique as datas selecionadas.');
-      return;
+        alert('Verifique as datas selecionadas.');
+        return;
     }
 
     const selectedTypes = Array.from(document.querySelectorAll('input[name="pmType"]:checked'))
@@ -190,41 +320,106 @@
     const url = `/clients_profiles/generate-heatmap/?start_date=${startDate}&end_date=${endDate}&pm_type=${pmParam}`;
 
     try {
-      const response = await fetch(url);
-      const jsonData = await response.json();
+        const response = await fetch(url);
+        const jsonData = await response.json();
 
-      if (jsonData.error) {
-        alert(jsonData.error);
-        return;
-      }
-      rawData = jsonData.data;
+        if (jsonData.error) {
+            alert(jsonData.error);
+            return;
+        }
 
-      if (!map) {
-        map = L.map('map-container').setView([-15.7942, -47.8822], 5);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
-      }
+        rawData = jsonData.data;
+        document.getElementById('selected-count').textContent = rawData.length;
 
-      updateHeatmapLayer();
+        const MIN_ZOOM = 2;
+        const MAX_ZOOM = 18;
 
-      const bounds = rawData.map(p => [p.lat, p.lon]);
-      if (bounds.length > 0) {
-        map.fitBounds(bounds);
-        setTimeout(() => map.invalidateSize(), 0);
-      }
+        if (!map) {
+            map = L.map('map-container', {
+                center: [-15.7942, -47.8822],
+                zoom: 5,
+                minZoom: MIN_ZOOM,
+                maxZoom: MAX_ZOOM,
+                worldCopyJump: false
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                noWrap: true
+            }).addTo(map);
+        }
+
+        updateHeatmapLayer();
+
+        const bounds = rawData.map(p => [p.lat, p.lon]);
+        if (bounds.length > 0) {
+            const latlngBounds = L.latLngBounds(bounds);
+            map.setMaxBounds(latlngBounds.pad(0.1));
+            map.fitBounds(latlngBounds.pad(0.1));
+        }
+
     } catch (error) {
-      alert('Erro ao buscar os dados do mapa de calor: ' + error);
+        alert('Erro ao buscar os dados do mapa de calor: ' + error);
     }
-  }
+}
 
-  function updateHeatmapLayer() {
+function updateHeatmapLayer() {
+    if (!rawData || rawData.length === 0) return;
+
     const heatData = rawData.map(p => [p.lat, p.lon, p.value]);
+
+    // Atualiza heatLayer
     if (heatLayer) {
-      map.removeLayer(heatLayer);
+        heatLayer.setLatLngs(heatData);
+    } else {
+        heatLayer = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 18 }).addTo(map);
     }
-    heatLayer = L.heatLayer(heatData, { radius: 25 }).addTo(map);
-  }
+
+    // Atualiza os circleMarkers usando um layerGroup
+    if (!markerGroup) {
+        markerGroup = L.layerGroup().addTo(map);
+    } else {
+        markerGroup.clearLayers(); // remove markers antigos
+    }
+
+    // Adiciona markers novos
+    rawData.forEach(p => {
+        const circle = L.circleMarker([p.lat, p.lon], {
+            radius: 5,             // menor tamanho melhora performance
+            fillColor: 'transparent',
+            color: 'transparent',
+            weight: 0,
+            fillOpacity: 0
+        });
+
+        circle.bindTooltip(`Concentração de Partículas: ${p.value.toFixed(2)}`, {
+            permanent: false,
+            direction: 'top'
+        });
+
+        markerGroup.addLayer(circle);
+    });
+}
+
+function updateSelectedCount() {
+    const selectedTypes = Array.from(document.querySelectorAll('input[name="pmType"]:checked'))
+                               .map(cb => cb.value); // ['pm1m', 'pm25m']
+
+    if (!rawData.length || !selectedTypes.length) {
+        document.getElementById('selected-count').textContent = 0;
+        return;
+    }
+
+    // Conta linhas que têm pelo menos um PM selecionado
+    const count = rawData.filter(row => 
+        selectedTypes.some(pm => row[pm] !== undefined && row[pm] !== null)
+    ).length;
+
+    document.getElementById('selected-count').textContent = count;
+}
+
+document.querySelectorAll('input[name="pmType"]').forEach(cb => cb.addEventListener('change', updateSelectedCount));
+
 
   function importData() {
     fetch('/sensor/import/')
